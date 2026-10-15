@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>習慣追蹤</title>
+  
+  <!-- 手機 App 化 (PWA / Web App) 專用設定 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="習慣追蹤">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#4f46e5">
+  
+  <!-- 自動產生手機桌面 App 圖示 -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%234f46e5%22/><text y=%22.88em%22 x=%22.12em%22 font-size=%2272%22>🔥</text></svg>">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%234f46e5%22/><text y=%22.88em%22 x=%22.12em%22 font-size=%2272%22>🔥</text></svg>">
+
+  <!-- 引入 Tailwind CSS 與 Chart.js -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { -webkit-tap-highlight-color: transparent; }
+    .check-cell { transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); }
+    .check-cell:active { transform: scale(0.82); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans p-3 sm:p-6 pb-12 select-none">
+
+  <div class="max-w-5xl mx-auto space-y-4 sm:space-y-6">
+    <!-- 頂部標題與新增區 -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-900">個人習慣追蹤</h1>
+        <p class="text-xs text-slate-500 mt-0.5" id="current-date-display">載入日期中...</p>
+      </div>
+      <form id="add-habit-form" class="flex gap-2">
+        <input 
+          type="text" 
+          id="habit-input" 
+          placeholder="新增習慣（如：練琴 30 分鐘）" 
+          required
+          class="px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm flex-1 sm:w-60 select-text"
+        />
+        <button 
+          type="submit" 
+          class="bg-indigo-600 active:bg-indigo-800 text-white px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap"
+        >
+          ＋ 新增
+        </button>
+      </form>
+    </header>
+
+    <!-- 關鍵指標卡片 (手機版改為橫向緊湊排列) -->
+    <section class="grid grid-cols-3 gap-2.5 sm:gap-4">
+      <div class="bg-white p-3.5 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
+        <p class="text-[11px] font-semibold text-slate-400 uppercase">今日完成</p>
+        <p class="text-xl sm:text-3xl font-bold text-slate-900 mt-1" id="today-progress">0/0</p>
+        <p class="text-[11px] text-indigo-600 font-semibold mt-0.5" id="today-percent">達成 0%</p>
+      </div>
+
+      <div class="bg-white p-3.5 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
+        <p class="text-[11px] font-semibold text-slate-400 uppercase">本週達成率</p>
+        <p class="text-xl sm:text-3xl font-bold text-emerald-600 mt-1" id="weekly-rate">0%</p>
+        <p class="text-[11px] text-slate-400 mt-0.5" id="total-checkins">累計 0 次</p>
+      </div>
+
+      <div class="bg-white p-3.5 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
+        <p class="text-[11px] font-semibold text-slate-400 uppercase">最長連續</p>
+        <p class="text-xl sm:text-3xl font-bold text-amber-500 mt-1" id="best-streak">0 天</p>
+        <p class="text-[11px] text-amber-600/80 mt-0.5">🔥 保持節奏</p>
+      </div>
+    </section>
+
+    <!-- 主內容區 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+      
+      <!-- 每週習慣打卡矩陣 -->
+      <div class="lg:col-span-2 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base sm:text-lg font-bold text-slate-800">本週打卡矩陣</h2>
+          <button id="reset-demo-btn" class="text-xs text-slate-400 active:text-slate-600 underline">重置範例</button>
+        </div>
+        <table class="w-full text-left border-collapse min-w-[480px]">
+          <thead>
+            <tr class="border-b border-slate-200 text-xs text-slate-400" id="table-header"></tr>
+          </thead>
+          <tbody id="habit-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+        </table>
+      </div>
+
+      <!-- 每週趨勢圖表 -->
+      <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-slate-800 mb-1">本週每日趨勢</h2>
+          <p class="text-xs text-slate-400 mb-3">點擊左側方格可即時更新數據</p>
+          <div class="relative h-52 sm:h-64 w-full">
+            <canvas id="weeklyChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const getLast7Days = () => {
+      const days = [];
+      const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        days.push({
+          key: `${yyyy}-${mm}-${dd}`,
+          label: i === 0 ? '今日' : dayNames[d.getDay()],
+          shortDate: `${mm}/${dd}`
+        });
+      }
+      return days;
+    };
+
+    const weekDays = getLast7Days();
+    const todayKey = weekDays[6].key;
+
+    const defaultHabits = [
+      { id: 1, name: '專注練習 30 分鐘', history: { [weekDays[1].key]: true, [weekDays[2].key]: true, [weekDays[4].key]: true, [weekDays[5].key]: true, [todayKey]: true } },
+      { id: 2, name: '外語文法與單字', history: { [weekDays[0].key]: true, [weekDays[2].key]: true, [weekDays[3].key]: true, [weekDays[5].key]: true } },
+      { id: 3, name: '程式專案推進', history: { [weekDays[1].key]: true, [weekDays[3].key]: true, [weekDays[4].key]: true, [weekDays[5].key]: true, [todayKey]: true } },
+      { id: 4, name: '00:30 前就寢', history: { [weekDays[0].key]: true, [weekDays[4].key]: true } }
+    ];
+
+    let habits = JSON.parse(localStorage.getItem('my_habits_v1')) || defaultHabits;
+    const saveData = () => localStorage.setItem('my_habits_v1', JSON.stringify(habits));
+
+    const calculateStreak = (history) => {
+      let streak = 0;
+      for (let i = 0; i < 365; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (history[key]) {
+          streak++;
+        } else {
+          if (i === 0) continue;
+          break;
+        }
+      }
+      return streak;
+    };
+
+    let chartInstance = null;
+    const initChart = () => {
+      const ctx = document.getElementById('weeklyChart').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: weekDays.map(d => d.label),
+          datasets: [{
+            label: '完成數',
+            data: [],
+            backgroundColor: 'rgba(79, 70, 229, 0.85)',
+            borderRadius: 6,
+            maxBarThickness: 28
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1 }, suggestedMax: Math.max(habits.length, 4) },
+            x: { grid: { display: false } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    };
+
+    const renderDashboard = () => {
+      document.getElementById('current-date-display').textContent = `${weekDays[0].shortDate} - ${weekDays[6].shortDate}`;
+
+      document.getElementById('table-header').innerHTML = `
+        <th class="py-2.5 pr-3 font-semibold text-slate-600">目標項目</th>
+        ${weekDays.map(d => `
+          <th class="py-2.5 px-1.5 text-center">
+            <div class="${d.key === todayKey ? 'text-indigo-600 font-bold' : ''}">${d.label}</div>
+            <div class="text-[10px] font-normal text-slate-400">${d.shortDate}</div>
+          </th>
+        `).join('')}
+        <th class="py-2.5 pl-2 text-center">連續</th>
+        <th class="py-2.5 pl-1 text-right"></th>
+      `;
+
+      document.getElementById('habit-tbody').innerHTML = habits.map(habit => {
+        const streak = calculateStreak(habit.history);
+        return `
+          <tr>
+            <td class="py-3 pr-3 font-medium text-slate-800 whitespace-nowrap">${habit.name}</td>
+            ${weekDays.map(d => {
+              const checked = !!habit.history[d.key];
+              return `
+                <td class="py-3 px-1 text-center">
+                  <button 
+                    onclick="toggleHabit(${habit.id}, '${d.key}')"
+                    class="check-cell w-8 h-8 rounded-xl inline-flex items-center justify-center border ${
+                      checked 
+                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm' 
+                        : 'bg-slate-100 border-slate-200 text-transparent'
+                    }"
+                  >✓</button>
+                </td>
+              `;
+            }).join('')}
+            <td class="py-3 pl-2 text-center whitespace-nowrap">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                streak > 0 ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-400'
+              }">🔥${streak}</span>
+            </td>
+            <td class="py-3 pl-1 text-right">
+              <button onclick="deleteHabit(${habit.id})" class="text-slate-300 active:text-rose-500 px-1.5">✕</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      let todayDone = 0, weekTotalDone = 0, maxStreak = 0;
+      const dailyCounts = weekDays.map(d => {
+        let count = 0;
+        habits.forEach(h => { if (h.history[d.key]) count++; });
+        weekTotalDone += count;
+        return count;
+      });
+
+      habits.forEach(h => {
+        if (h.history[todayKey]) todayDone++;
+        const s = calculateStreak(h.history);
+        if (s > maxStreak) maxStreak = s;
+      });
+
+      const totalHabits = habits.length;
+      const todayPercent = totalHabits ? Math.round((todayDone / totalHabits) * 100) : 0;
+      const weekRate = (totalHabits * 7) ? Math.round((weekTotalDone / (totalHabits * 7)) * 100) : 0;
+
+      document.getElementById('today-progress').textContent = `${todayDone}/${totalHabits}`;
+      document.getElementById('today-percent').textContent = `達成 ${todayPercent}%`;
+      document.getElementById('weekly-rate').textContent = `${weekRate}%`;
+      document.getElementById('best-streak').textContent = `${maxStreak} 天`;
+      document.getElementById('total-checkins').textContent = `累計 ${weekTotalDone} 次`;
+
+      if (chartInstance) {
+        chartInstance.data.datasets[0].data = dailyCounts;
+        chartInstance.options.scales.y.suggestedMax = Math.max(totalHabits, 4);
+        chartInstance.update();
+      }
+    };
+
+    window.toggleHabit = (id, dateKey) => {
+      const habit = habits.find(h => h.id === id);
+      if (habit) {
+        habit.history[dateKey] = !habit.history[dateKey];
+        saveData();
+        renderDashboard();
+      }
+    };
+
+    window.deleteHabit = (id) => {
+      habits = habits.filter(h => h.id !== id);
+      saveData();
+      renderDashboard();
+    };
+
+    document.getElementById('add-habit-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('habit-input');
+      const name = input.value.trim();
+      if (name) {
+        habits.push({ id: Date.now(), name, history: {} });
+        input.value = '';
+        saveData();
+        renderDashboard();
+      }
+    });
+
+    document.getElementById('reset-demo-btn').addEventListener('click', () => {
+      localStorage.removeItem('my_habits_v1');
+      habits = JSON.parse(JSON.stringify(defaultHabits));
+      renderDashboard();
+    });
+
+    initChart();
+    renderDashboard();
+  </script>
+</body>
+</html>
