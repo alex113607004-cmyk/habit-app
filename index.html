@@ -5,270 +5,587 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>習慣追蹤</title>
   
-  <!-- 手機 App 化 (PWA / Web App) 專用設定 -->
+  <!-- iPhone PWA 全螢幕設定 -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="習慣追蹤">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#4f46e5">
+  <meta name="theme-color" content="#58cc02">
   
-  <!-- 自動產生手機桌面 App 圖示 -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%234f46e5%22/><text y=%22.88em%22 x=%22.12em%22 font-size=%2272%22>🔥</text></svg>">
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%234f46e5%22/><text y=%22.88em%22 x=%22.12em%22 font-size=%2272%22>🔥</text></svg>">
+  <!-- App 圖示 -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2224%22 fill=%22%2358cc02%22/><text y=%22.86em%22 x=%22.12em%22 font-size=%2272%22>🦉</text></svg>">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2224%22 fill=%22%2358cc02%22/><text y=%22.86em%22 x=%22.12em%22 font-size=%2272%22>🦉</text></svg>">
 
-  <!-- 引入 Tailwind CSS 與 Chart.js -->
+  <!-- 引入 Tailwind CSS、Chart.js 與彩帶特效套件 Canvas-Confetti -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <style>
     body { -webkit-tap-highlight-color: transparent; }
+    .duo-btn {
+      transition: all 0.1s;
+      box-shadow: 0 4px 0 #46a302;
+    }
+    .duo-btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 0px 0 #46a302;
+    }
     .check-cell { transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); }
-    .check-cell:active { transform: scale(0.82); }
+    .check-cell:active:not(:disabled) { transform: scale(0.82); }
+    @keyframes popIn {
+      0% { transform: scale(0.8); opacity: 0; }
+      70% { transform: scale(1.05); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-pop { animation: popIn 0.35s ease-out forwards; }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen font-sans p-3 sm:p-6 pb-12 select-none">
+<body class="bg-slate-100 text-slate-800 min-h-screen font-sans p-3 sm:p-6 pb-16 select-none">
 
-  <div class="max-w-5xl mx-auto space-y-4 sm:space-y-6">
-    <!-- 頂部標題與新增區 -->
-    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
-      <div>
-        <h1 class="text-xl sm:text-2xl font-bold text-slate-900">個人習慣追蹤</h1>
-        <p class="text-xs text-slate-500 mt-0.5" id="current-date-display">載入日期中...</p>
-      </div>
-      <form id="add-habit-form" class="flex gap-2">
-        <input 
-          type="text" 
-          id="habit-input" 
-          placeholder="新增習慣（如：練琴 30 分鐘）" 
-          required
-          class="px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm flex-1 sm:w-60 select-text"
-        />
-        <button 
-          type="submit" 
-          class="bg-indigo-600 active:bg-indigo-800 text-white px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap"
-        >
-          ＋ 新增
-        </button>
-      </form>
-    </header>
-
-    <!-- 關鍵指標卡片 (手機版改為橫向緊湊排列) -->
-    <section class="grid grid-cols-3 gap-2.5 sm:gap-4">
-      <div class="bg-white p-3.5 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
-        <p class="text-[11px] font-semibold text-slate-400 uppercase">今日完成</p>
-        <p class="text-xl sm:text-3xl font-bold text-slate-900 mt-1" id="today-progress">0/0</p>
-        <p class="text-[11px] text-indigo-600 font-semibold mt-0.5" id="today-percent">達成 0%</p>
-      </div>
-
-      <div class="bg-white p-3.5 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
-        <p class="text-[11px] font-semibold text-slate-400 uppercase">本週達成率</p>
-        <p class="text-xl sm:text-3xl font-bold text-emerald-600 mt-1" id="weekly-rate">0%</p>
-        <p class="text-[11px] text-slate-400 mt-0.5" id="total-checkins">累計 0 次</p>
-      </div>
-
-      <div class="bg-white p-3.5 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
-        <p class="text-[11px] font-semibold text-slate-400 uppercase">最長連續</p>
-        <p class="text-xl sm:text-3xl font-bold text-amber-500 mt-1" id="best-streak">0 天</p>
-        <p class="text-[11px] text-amber-600/80 mt-0.5">🔥 保持節奏</p>
-      </div>
-    </section>
-
-    <!-- 主內容區 -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-      
-      <!-- 每週習慣打卡矩陣 -->
-      <div class="lg:col-span-2 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-base sm:text-lg font-bold text-slate-800">本週打卡矩陣</h2>
-          <button id="reset-demo-btn" class="text-xs text-slate-400 active:text-slate-600 underline">重置範例</button>
+  <div class="max-w-5xl mx-auto space-y-4 sm:space-y-5">
+    
+    <!-- 🦉 多鄰國風頂部狀態列 (火苗、寶石、經驗值與等級) -->
+    <header class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border-2 border-slate-200 flex flex-col gap-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-xl bg-[#58cc02] flex items-center justify-center text-2xl shadow-sm">🦉</div>
+          <div>
+            <h1 class="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight">每日習慣修煉</h1>
+            <p class="text-[11px] font-bold text-slate-400" id="level-title">Lv.1 習慣新手</p>
+          </div>
         </div>
-        <table class="w-full text-left border-collapse min-w-[480px]">
-          <thead>
-            <tr class="border-b border-slate-200 text-xs text-slate-400" id="table-header"></tr>
-          </thead>
-          <tbody id="habit-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
-        </table>
-      </div>
 
-      <!-- 每週趨勢圖表 -->
-      <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
-        <div>
-          <h2 class="text-base sm:text-lg font-bold text-slate-800 mb-1">本週每日趨勢</h2>
-          <p class="text-xs text-slate-400 mb-3">點擊左側方格可即時更新數據</p>
-          <div class="relative h-52 sm:h-64 w-full">
-            <canvas id="weeklyChart"></canvas>
+        <!-- 頂部三大遊戲指標 -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <div class="flex items-center gap-1 bg-amber-50 border-2 border-amber-200 px-2.5 py-1 rounded-xl" title="最長連續天數">
+            <span class="text-base">🔥</span>
+            <span class="font-extrabold text-amber-500 text-sm" id="top-streak">0</span>
+          </div>
+          <div class="flex items-center gap-1 bg-sky-50 border-2 border-sky-200 px-2.5 py-1 rounded-xl" title="寶石（可用於購買連勝凍結卡）">
+            <span class="text-base">💎</span>
+            <span class="font-extrabold text-sky-500 text-sm" id="top-gems">0</span>
+          </div>
+          <div class="flex items-center gap-1 bg-emerald-50 border-2 border-emerald-200 px-2.5 py-1 rounded-xl" title="總經驗值 XP">
+            <span class="text-base">⚡</span>
+            <span class="font-extrabold text-emerald-600 text-sm" id="top-xp">0 XP</span>
           </div>
         </div>
       </div>
 
+      <!-- 經驗值升級進度條 -->
+      <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200 relative">
+        <div id="xp-bar" class="bg-[#58cc02] h-full transition-all duration-500 rounded-full" style="width: 0%"></div>
+      </div>
+      <div class="flex justify-between items-center text-[11px] text-slate-400 font-semibold">
+        <span id="xp-progress-text">距離下一級還需 100 XP</span>
+        <button id="buy-freeze-btn" class="text-sky-600 hover:underline flex items-center gap-1 font-bold">
+          🧊 購買「補簽冷凍卡」(50 💎) [持有: <span id="freeze-count">0</span>]
+        </button>
+      </div>
+    </header>
+
+    <!-- 🎉 每日全數完成的多鄰國慶祝橫幅（預設隱藏，今日全滿時跳出） -->
+    <div id="duo-celebration" class="hidden bg-[#58cc02] text-white p-4 rounded-2xl shadow-md border-b-4 border-[#46a302] animate-pop flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="text-3xl">🏆</div>
+        <div>
+          <h3 class="font-extrabold text-base sm:text-lg">太神啦！今日目標 100% 完美達成！</h3>
+          <p class="text-xs text-lime-100 font-medium">已領取今日完美通關寶箱 (+30 XP, +15 💎)，明天繼續保持連勝！</p>
+        </div>
+      </div>
+      <span class="text-2xl font-black">🔥</span>
     </div>
+
+    <!-- 新增習慣與過期鎖定提示 -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border-2 border-slate-200 flex flex-col sm:flex-row justify-between gap-3 items-center">
+      <div class="text-xs text-slate-500 font-medium flex items-center gap-2">
+        <span class="bg-rose-100 text-rose-600 font-bold px-2 py-0.5 rounded-lg">🔒 嚴格模式</span>
+        <span>僅開放**今日（午夜 12:00 前）**打卡，過期格子將自動上鎖！</span>
+      </div>
+      <form id="add-habit-form" class="flex gap-2 w-full sm:w-auto">
+        <input 
+          type="text" 
+          id="habit-input" 
+          placeholder="輸入新習慣..." 
+          required
+          class="px-3.5 py-2 rounded-xl border-2 border-slate-200 focus:outline-none focus:border-[#58cc02] text-sm flex-1 sm:w-56 select-text font-medium"
+        />
+        <button 
+          type="submit" 
+          class="duo-btn bg-[#58cc02] hover:bg-[#4eb800] text-white px-4 py-2 rounded-xl text-sm font-extrabold whitespace-nowrap"
+        >
+          ＋ 新增目標
+        </button>
+      </form>
+    </div>
+
+    <!-- 📅 當月打卡矩陣（僅今日可點，過去日期上鎖） -->
+    <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border-2 border-slate-200">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h2 class="text-base sm:text-lg font-extrabold text-slate-800" id="month-matrix-title">本月打卡紀錄</h2>
+          <p class="text-xs text-slate-400">往右滑動可查看整月紀錄（點擊 🔒 可消耗「冷凍卡」補簽昨天）</p>
+        </div>
+        <button id="scroll-today-btn" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl transition">
+          定位至今日 🎯
+        </button>
+      </div>
+
+      <div class="overflow-x-auto pb-2" id="matrix-scroll-container">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b-2 border-slate-100 text-xs text-slate-400" id="table-header"></tr>
+          </thead>
+          <tbody id="habit-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 📊 當月每日打卡次數統計圖表 -->
+    <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border-2 border-slate-200">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+        <div>
+          <h2 class="text-base sm:text-lg font-extrabold text-slate-800" id="chart-month-title">當月每日打卡統計圖</h2>
+          <p class="text-xs text-slate-400">記錄這個月每一天完成了幾個目標</p>
+        </div>
+        <div class="flex gap-3 text-xs font-bold">
+          <span class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-xl border border-emerald-200" id="month-total-checkins">本月累計：0 次</span>
+          <span class="bg-amber-50 text-amber-600 px-3 py-1 rounded-xl border border-amber-200" id="month-perfect-days">完美全勤：0 天</span>
+        </div>
+      </div>
+      <div class="relative h-56 sm:h-64 w-full">
+        <canvas id="monthlyChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 📱 iPhone 專屬通知中心設定 -->
+    <section class="bg-indigo-50/80 border-2 border-indigo-100 p-4 sm:p-5 rounded-2xl space-y-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div class="flex items-start gap-2.5">
+          <span class="text-2xl">📲</span>
+          <div>
+            <h2 class="text-sm font-extrabold text-slate-800">iPhone 未完成提醒通知設定</h2>
+            <p class="text-xs text-slate-500">設定晚上提醒時間，避免超過午夜 12:00 被系統鎖死無法打卡！</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <input 
+            type="time" 
+            id="reminder-time" 
+            value="21:30"
+            class="px-3 py-1.5 rounded-xl border-2 border-slate-200 text-sm bg-white font-bold text-slate-700"
+          />
+          <button 
+            id="calendar-alarm-btn"
+            class="bg-amber-500 active:bg-amber-600 text-white px-3 py-2 rounded-xl text-xs font-extrabold shadow-sm"
+          >
+            方法A：寫入 iPhone 行事曆鬧鐘
+          </button>
+        </div>
+      </div>
+
+      <!-- ntfy 雲端推播設定 (支援 iPhone 鎖屏通知) -->
+      <div class="pt-3 border-t border-indigo-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+        <div class="text-slate-600">
+          <span class="font-bold text-indigo-700">方法B（支援 iPhone 推播 App `ntfy`）：</span>
+          在 App Store 下載免費的 <b>ntfy</b>，輸入自訂頻道名稱即可測試鎖屏推播：
+        </div>
+        <div class="flex gap-2 w-full sm:w-auto">
+          <input 
+            type="text" 
+            id="ntfy-topic" 
+            placeholder="輸入頻道名 (如 alex-habit)" 
+            class="px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs flex-1 sm:w-44 select-text"
+          />
+          <button 
+            id="ntfy-test-btn"
+            class="bg-indigo-600 active:bg-indigo-700 text-white px-3 py-1.5 rounded-xl font-bold whitespace-nowrap"
+          >
+            發送 iPhone 推播檢查
+          </button>
+        </div>
+      </div>
+    </section>
+
   </div>
 
   <script>
-    const getLast7Days = () => {
-      const days = [];
-      const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        days.push({
-          key: `${yyyy}-${mm}-${dd}`,
-          label: i === 0 ? '今日' : dayNames[d.getDay()],
-          shortDate: `${mm}/${dd}`
-        });
-      }
-      return days;
+    // --- 1. 產生多鄰國風格音效 (Web Audio API，免外部音檔) ---
+    const playSound = (type) => {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
+        if (type === 'ding') {
+          // 單項打勾清脆雙音
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, now); // D5
+          osc.frequency.setValueAtTime(880, now + 0.09); // A5
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } else if (type === 'fanfare') {
+          // 今日全滿過關和弦音效
+          const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+            gain.gain.setValueAtTime(0.3, now + idx * 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.5);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + idx * 0.08);
+            osc.stop(now + idx * 0.08 + 0.5);
+          });
+        }
+      } catch (e) {}
     };
 
-    const weekDays = getLast7Days();
-    const todayKey = weekDays[6].key;
+    // --- 2. 取得當月所有日期資訊 ---
+    const nowDate = new Date();
+    const currentYear = nowDate.getFullYear();
+    const currentMonth = nowDate.getMonth(); // 0-11
+    const todayDateNum = nowDate.getDate();
 
+    const formatKey = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const todayKey = formatKey(currentYear, currentMonth, todayDateNum);
+
+    // 計算昨天 Key（供冷凍補簽卡使用）
+    const yesterdayObj = new Date(currentYear, currentMonth, todayDateNum - 1);
+    const yesterdayKey = formatKey(yesterdayObj.getFullYear(), yesterdayObj.getMonth(), yesterdayObj.getDate());
+
+    const getDaysInCurrentMonth = () => {
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+      const list = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateObj = new Date(currentYear, currentMonth, d);
+        const key = formatKey(currentYear, currentMonth, d);
+        list.push({
+          dayNum: d,
+          key: key,
+          weekDay: dayNames[dateObj.getDay()],
+          isToday: key === todayKey,
+          isPast: d < todayDateNum,
+          isFuture: d > todayDateNum
+        });
+      }
+      return list;
+    };
+
+    const monthDays = getDaysInCurrentMonth();
+
+    // --- 3. 讀取與儲存習慣與遊戲化狀態 ---
     const defaultHabits = [
-      { id: 1, name: '專注練習 30 分鐘', history: { [weekDays[1].key]: true, [weekDays[2].key]: true, [weekDays[4].key]: true, [weekDays[5].key]: true, [todayKey]: true } },
-      { id: 2, name: '外語文法與單字', history: { [weekDays[0].key]: true, [weekDays[2].key]: true, [weekDays[3].key]: true, [weekDays[5].key]: true } },
-      { id: 3, name: '程式專案推進', history: { [weekDays[1].key]: true, [weekDays[3].key]: true, [weekDays[4].key]: true, [weekDays[5].key]: true, [todayKey]: true } },
-      { id: 4, name: '00:30 前就寢', history: { [weekDays[0].key]: true, [weekDays[4].key]: true } }
+      { id: 1, name: '🎹 專注練琴 30 分鐘', history: {} },
+      { id: 2, name: '🇪🇸 西語單字與文法', history: {} },
+      { id: 3, name: '💻 推進程式 / 實驗專案', history: {} },
+      { id: 4, name: '🌙 00:30 前準時就寢', history: {} }
     ];
 
-    let habits = JSON.parse(localStorage.getItem('my_habits_v1')) || defaultHabits;
-    const saveData = () => localStorage.setItem('my_habits_v1', JSON.stringify(habits));
+    let habits = JSON.parse(localStorage.getItem('duo_habits_v2')) || defaultHabits;
+    let gameStats = JSON.parse(localStorage.getItem('duo_gamestats_v2')) || {
+      xp: 0,
+      gems: 50, // 初始贈送 50 寶石
+      freezes: 1, // 初始贈送 1 張連勝凍結卡
+      rewardedDays: {} // 記錄哪幾天已經領過全勤寶箱
+    };
 
+    const saveAll = () => {
+      localStorage.setItem('duo_habits_v2', JSON.stringify(habits));
+      localStorage.setItem('duo_gamestats_v2', JSON.stringify(gameStats));
+    };
+
+    // --- 4. 計算連續天數 (Streak) ---
     const calculateStreak = (history) => {
       let streak = 0;
       for (let i = 0; i < 365; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const d = new Date(currentYear, currentMonth, todayDateNum - i);
+        const key = formatKey(d.getFullYear(), d.getMonth(), d.getDate());
         if (history[key]) {
           streak++;
         } else {
-          if (i === 0) continue;
+          if (i === 0) continue; // 今天還沒結束前不歸零
           break;
         }
       }
       return streak;
     };
 
+    // --- 5. 初始化當月 Chart.js 圖表 ---
     let chartInstance = null;
     const initChart = () => {
-      const ctx = document.getElementById('weeklyChart').getContext('2d');
+      const ctx = document.getElementById('monthlyChart').getContext('2d');
       chartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: weekDays.map(d => d.label),
+          labels: monthDays.map(d => `${d.dayNum}日`),
           datasets: [{
-            label: '完成數',
+            label: '完成目標數',
             data: [],
-            backgroundColor: 'rgba(79, 70, 229, 0.85)',
-            borderRadius: 6,
-            maxBarThickness: 28
+            backgroundColor: monthDays.map(d => d.isToday ? '#58cc02' : '#38bdf8'),
+            borderRadius: 5,
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           scales: {
-            y: { beginAtZero: true, ticks: { stepSize: 1 }, suggestedMax: Math.max(habits.length, 4) },
-            x: { grid: { display: false } }
+            y: {
+              beginAtZero: true,
+              ticks: { stepSize: 1 },
+              suggestedMax: Math.max(habits.length, 4)
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 15 }
+            }
           },
-          plugins: { legend: { display: false } }
+          plugins: {
+            legend: { display: false }
+          }
         }
       });
     };
 
+    // --- 6. 渲染主畫面 ---
     const renderDashboard = () => {
-      document.getElementById('current-date-display').textContent = `${weekDays[0].shortDate} - ${weekDays[6].shortDate}`;
+      const monthLabel = `${currentYear} 年 ${currentMonth + 1} 月`;
+      document.getElementById('month-matrix-title').textContent = `📅 ${monthLabel} 打卡紀錄表`;
+      document.getElementById('chart-month-title').textContent = `📊 ${monthLabel} 每日完成趨勢`;
 
+      // 更新頂部多鄰國經驗值與等級
+      const level = Math.floor(gameStats.xp / 100) + 1;
+      const xpInLevel = gameStats.xp % 100;
+      const titles = ['習慣新手', '自律學徒', '連勝守衛', '時間管理大師', '傳奇修行者'];
+      const titleText = titles[Math.min(level - 1, titles.length - 1)];
+
+      document.getElementById('level-title').textContent = `Lv.${level} ${titleText}`;
+      document.getElementById('top-gems').textContent = gameStats.gems;
+      document.getElementById('top-xp').textContent = `${gameStats.xp} XP`;
+      document.getElementById('xp-bar').style.width = `${xpInLevel}%`;
+      document.getElementById('xp-progress-text').textContent = `目前等級進度：${xpInLevel} / 100 XP`;
+      document.getElementById('freeze-count').textContent = gameStats.freezes;
+
+      // 渲染當月表頭
       document.getElementById('table-header').innerHTML = `
-        <th class="py-2.5 pr-3 font-semibold text-slate-600">目標項目</th>
-        ${weekDays.map(d => `
-          <th class="py-2.5 px-1.5 text-center">
-            <div class="${d.key === todayKey ? 'text-indigo-600 font-bold' : ''}">${d.label}</div>
-            <div class="text-[10px] font-normal text-slate-400">${d.shortDate}</div>
+        <th class="py-2.5 pr-3 font-extrabold text-slate-700 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">每日習慣</th>
+        <th class="py-2.5 px-2 text-center font-bold">連勝</th>
+        ${monthDays.map(d => `
+          <th id="th-day-${d.dayNum}" class="py-2 px-1.5 text-center min-w-[42px] ${d.isToday ? 'bg-lime-50 rounded-t-xl' : ''}">
+            <div class="text-[10px] ${d.isToday ? 'text-[#58cc02] font-black' : 'text-slate-400'}">${d.isToday ? '今日' : d.weekDay}</div>
+            <div class="text-xs ${d.isToday ? 'text-[#58cc02] font-black' : 'text-slate-600'}">${d.dayNum}</div>
           </th>
         `).join('')}
-        <th class="py-2.5 pl-2 text-center">連續</th>
-        <th class="py-2.5 pl-1 text-right"></th>
+        <th class="py-2.5 pl-2"></th>
       `;
 
+      // 渲染每一列習慣（非今日全部上鎖 🔒）
       document.getElementById('habit-tbody').innerHTML = habits.map(habit => {
         const streak = calculateStreak(habit.history);
         return `
           <tr>
-            <td class="py-3 pr-3 font-medium text-slate-800 whitespace-nowrap">${habit.name}</td>
-            ${weekDays.map(d => {
-              const checked = !!habit.history[d.key];
-              return `
-                <td class="py-3 px-1 text-center">
-                  <button 
-                    onclick="toggleHabit(${habit.id}, '${d.key}')"
-                    class="check-cell w-8 h-8 rounded-xl inline-flex items-center justify-center border ${
-                      checked 
-                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm' 
-                        : 'bg-slate-100 border-slate-200 text-transparent'
-                    }"
-                  >✓</button>
-                </td>
-              `;
-            }).join('')}
-            <td class="py-3 pl-2 text-center whitespace-nowrap">
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
-                streak > 0 ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-400'
+            <td class="py-3 pr-3 font-bold text-slate-800 whitespace-nowrap sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">${habit.name}</td>
+            <td class="py-3 px-2 text-center whitespace-nowrap">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold ${
+                streak > 0 ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'
               }">🔥${streak}</span>
             </td>
-            <td class="py-3 pl-1 text-right">
-              <button onclick="deleteHabit(${habit.id})" class="text-slate-300 active:text-rose-500 px-1.5">✕</button>
+            ${monthDays.map(d => {
+              const checked = !!habit.history[d.key];
+              if (d.isToday) {
+                // 只有今天可以自由點擊打卡
+                return `
+                  <td class="py-2.5 px-1 text-center bg-lime-50/60">
+                    <button 
+                      onclick="toggleTodayHabit(${habit.id})"
+                      class="check-cell w-8 h-8 rounded-xl inline-flex items-center justify-center font-black border-2 ${
+                        checked 
+                          ? 'bg-[#58cc02] border-[#46a302] text-white shadow-[0_2px_0_#46a302]' 
+                          : 'bg-white border-slate-300 text-transparent hover:border-[#58cc02]'
+                      }"
+                    >✓</button>
+                  </td>
+                `;
+              } else if (d.isPast) {
+                // 已經超過午夜 12 點的過去日期：上鎖！
+                return `
+                  <td class="py-2.5 px-1 text-center">
+                    <button 
+                      onclick="tryLockedDay(${habit.id}, '${d.key}')"
+                      class="w-7 h-7 rounded-lg inline-flex items-center justify-center text-xs border ${
+                        checked 
+                          ? 'bg-emerald-500/80 border-emerald-600 text-white cursor-not-allowed' 
+                          : 'bg-slate-100 border-slate-200 text-slate-300 cursor-pointer hover:bg-sky-50'
+                      }"
+                      title="${checked ? '已完成（已鎖定）' : '已過午夜 12:00 鎖定（點擊可使用冷凍卡補簽）'}"
+                    >${checked ? '✓' : '🔒'}</button>
+                  </td>
+                `;
+              } else {
+                // 未來日期：禁止點擊
+                return `
+                  <td class="py-2.5 px-1 text-center">
+                    <span class="w-7 h-7 rounded-lg inline-flex items-center justify-center text-xs bg-slate-50 text-slate-200 border border-slate-100 cursor-not-allowed">·</span>
+                  </td>
+                `;
+              }
+            }).join('')}
+            <td class="py-3 pl-2 text-right">
+              <button onclick="deleteHabit(${habit.id})" class="text-slate-300 hover:text-rose-500 px-1.5 font-bold">✕</button>
             </td>
           </tr>
         `;
       }).join('');
 
-      let todayDone = 0, weekTotalDone = 0, maxStreak = 0;
-      const dailyCounts = weekDays.map(d => {
-        let count = 0;
-        habits.forEach(h => { if (h.history[d.key]) count++; });
-        weekTotalDone += count;
-        return count;
-      });
+      // 統計當月數據與最長連勝
+      let maxStreak = 0;
+      let monthTotal = 0;
+      let perfectDays = 0;
 
       habits.forEach(h => {
-        if (h.history[todayKey]) todayDone++;
         const s = calculateStreak(h.history);
         if (s > maxStreak) maxStreak = s;
       });
 
-      const totalHabits = habits.length;
-      const todayPercent = totalHabits ? Math.round((todayDone / totalHabits) * 100) : 0;
-      const weekRate = (totalHabits * 7) ? Math.round((weekTotalDone / (totalHabits * 7)) * 100) : 0;
+      const monthlyDailyCounts = monthDays.map(d => {
+        let count = 0;
+        habits.forEach(h => { if (h.history[d.key]) count++; });
+        monthTotal += count;
+        if (habits.length > 0 && count === habits.length) perfectDays++;
+        return count;
+      });
 
-      document.getElementById('today-progress').textContent = `${todayDone}/${totalHabits}`;
-      document.getElementById('today-percent').textContent = `達成 ${todayPercent}%`;
-      document.getElementById('weekly-rate').textContent = `${weekRate}%`;
-      document.getElementById('best-streak').textContent = `${maxStreak} 天`;
-      document.getElementById('total-checkins').textContent = `累計 ${weekTotalDone} 次`;
+      document.getElementById('top-streak').textContent = maxStreak;
+      document.getElementById('month-total-checkins').textContent = `本月累計：${monthTotal} 次`;
+      document.getElementById('month-perfect-days').textContent = `完美全勤：${perfectDays} 天`;
 
+      // 檢查今日是否 100% 全部完成（觸發多鄰國慶祝橫幅）
+      const todayDoneCount = habits.filter(h => h.history[todayKey]).length;
+      const isAllDoneToday = habits.length > 0 && todayDoneCount === habits.length;
+      const banner = document.getElementById('duo-celebration');
+      if (isAllDoneToday) {
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+
+      // 更新當月圖表
       if (chartInstance) {
-        chartInstance.data.datasets[0].data = dailyCounts;
-        chartInstance.options.scales.y.suggestedMax = Math.max(totalHabits, 4);
+        chartInstance.data.datasets[0].data = monthlyDailyCounts;
+        chartInstance.options.scales.y.suggestedMax = Math.max(habits.length, 4);
         chartInstance.update();
       }
     };
 
-    window.toggleHabit = (id, dateKey) => {
+    // --- 7. 互動邏輯：僅允許今日打卡 + 多鄰國獎勵派發 ---
+    window.toggleTodayHabit = (id) => {
+      // 再次驗證系統時間是否仍在今日，防止跨日未重整網頁偷打勾
+      const realNow = new Date();
+      const realTodayKey = formatKey(realNow.getFullYear(), realNow.getMonth(), realNow.getDate());
+      if (realTodayKey !== todayKey) {
+        alert('⏰ 已經超過晚上 12:00 跨日囉！系統將自動重新整理至新的一天。');
+        window.location.reload();
+        return;
+      }
+
       const habit = habits.find(h => h.id === id);
-      if (habit) {
-        habit.history[dateKey] = !habit.history[dateKey];
-        saveData();
-        renderDashboard();
+      if (!habit) return;
+
+      const wasChecked = !!habit.history[todayKey];
+      habit.history[todayKey] = !wasChecked;
+
+      if (!wasChecked) {
+        // 打勾獲得獎勵
+        gameStats.xp += 10;
+        gameStats.gems += 5;
+        playSound('ding');
+
+        // 檢查是否達成今日全滿
+        const allDone = habits.every(h => h.history[todayKey]);
+        if (allDone && !gameStats.rewardedDays[todayKey]) {
+          gameStats.rewardedDays[todayKey] = true;
+          gameStats.xp += 30;
+          gameStats.gems += 15;
+          setTimeout(() => {
+            playSound('fanfare');
+            confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
+          }, 150);
+        }
+      } else {
+        // 取消打勾扣回剛加的點數
+        gameStats.xp = Math.max(0, gameStats.xp - 10);
+        gameStats.gems = Math.max(0, gameStats.gems - 5);
+      }
+
+      saveAll();
+      renderDashboard();
+    };
+
+    // 點擊已過午夜 12 點的上鎖格子時
+    window.tryLockedDay = (id, dateKey) => {
+      const habit = habits.find(h => h.id === id);
+      if (!habit || habit.history[dateKey]) {
+        alert('🔒 已經過了當天晚上 12:00，歷史紀錄已鎖定無法修改！');
+        return;
+      }
+
+      if (dateKey === yesterdayKey) {
+        if (gameStats.freezes > 0) {
+          const useFreeze = confirm(`🔒 昨天已經超過午夜 12:00 鎖定了！\n\n你要消耗 1 張「🧊 補簽冷凍卡」來拯救昨天的【${habit.name}】紀錄嗎？（目前持有 ${gameStats.freezes} 張）`);
+          if (useFreeze) {
+            gameStats.freezes -= 1;
+            habit.history[dateKey] = true;
+            playSound('ding');
+            saveAll();
+            renderDashboard();
+          }
+        } else {
+          alert('🔒 已經超過當天晚上 12:00，無法補打卡！\n（若想補救昨天的紀錄，可點擊上方用 50 💎 購買「補簽冷凍卡」）');
+        }
+      } else {
+        alert('🔒 已經超過當天晚上 12:00 太久了，無法再添加紀錄！請把握今天的打卡時間！');
       }
     };
 
+    // 購買連勝冷凍卡
+    document.getElementById('buy-freeze-btn').addEventListener('click', () => {
+      if (gameStats.gems < 50) {
+        alert(`💎 寶石不足！購買補簽冷凍卡需要 50 💎，你目前只有 ${gameStats.gems} 💎。\n快完成今天的習慣來賺取寶石吧！`);
+        return;
+      }
+      if (confirm('要花費 50 💎 購買 1 張「🧊 補簽冷凍卡」嗎？')) {
+        gameStats.gems -= 50;
+        gameStats.freezes += 1;
+        playSound('ding');
+        saveAll();
+        renderDashboard();
+      }
+    });
+
+    // 自動捲動表格到「今日」欄位
+    const scrollToToday = () => {
+      const todayTh = document.getElementById(`th-day-${todayDateNum}`);
+      const container = document.getElementById('matrix-scroll-container');
+      if (todayTh && container) {
+        container.scrollLeft = Math.max(0, todayTh.offsetLeft - 160);
+      }
+    };
+
+    document.getElementById('scroll-today-btn').addEventListener('click', scrollToToday);
+
     window.deleteHabit = (id) => {
-      habits = habits.filter(h => h.id !== id);
-      saveData();
-      renderDashboard();
+      if (confirm('確定要刪除這個習慣目標嗎？')) {
+        habits = habits.filter(h => h.id !== id);
+        saveAll();
+        renderDashboard();
+      }
     };
 
     document.getElementById('add-habit-form').addEventListener('submit', (e) => {
@@ -278,19 +595,83 @@
       if (name) {
         habits.push({ id: Date.now(), name, history: {} });
         input.value = '';
-        saveData();
+        saveAll();
         renderDashboard();
       }
     });
 
-    document.getElementById('reset-demo-btn').addEventListener('click', () => {
-      localStorage.removeItem('my_habits_v1');
-      habits = JSON.parse(JSON.stringify(defaultHabits));
-      renderDashboard();
+    // --- 8. iPhone 通知方案 A：一鍵寫入 iOS 行事曆每日提醒 ---
+    document.getElementById('calendar-alarm-btn').addEventListener('click', () => {
+      const timeVal = document.getElementById('reminder-time').value || '21:30';
+      const [hh, mm] = timeVal.split(':');
+      const yyyy = currentYear;
+      const month = String(currentMonth + 1).padStart(2, '0');
+      const day = String(todayDateNum).padStart(2, '0');
+      const appUrl = window.location.href;
+
+      const icsContent = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Duo Habit Tracker//TW',
+        'BEGIN:VEVENT',
+        `DTSTART:${yyyy}${month}${day}T${hh}${mm}00`,
+        `DTEND:${yyyy}${month}${day}T${hh}${mm}00`,
+        'RRULE:FREQ=DAILY',
+        'SUMMARY:🦉 午夜12點前快來打卡保住連勝！',
+        `DESCRIPTION:超過晚上12點就會上鎖喔！點擊打開打卡： ${appUrl}`,
+        `URL:${appUrl}`,
+        'BEGIN:VALARM',
+        'TRIGGER:-PT0M',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:🦉 今天還有習慣沒完成嗎？超過12點就鎖死囉！',
+        'END:VALARM',
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ].join('\r\n');
+
+      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'iphone-habit-reminder.ics';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    // --- 9. iPhone 通知方案 B：透過 ntfy.sh 發送真正的 iPhone 鎖屏推播 ---
+    const topicInput = document.getElementById('ntfy-topic');
+    topicInput.value = localStorage.getItem('duo_ntfy_topic') || '';
+    topicInput.addEventListener('change', () => {
+      localStorage.setItem('duo_ntfy_topic', topicInput.value.trim());
+    });
+
+    document.getElementById('ntfy-test-btn').addEventListener('click', async () => {
+      const topic = topicInput.value.trim();
+      if (!topic) {
+        alert('請先在左側輸入一個自訂的英文頻道名稱（例如：alex-habit-123），並在 iPhone 下載免費的「ntfy」App 訂閱同一個名稱！');
+        return;
+      }
+      localStorage.setItem('duo_ntfy_topic', topic);
+      const unfinished = habits.filter(h => !h.history[todayKey]);
+      const msg = unfinished.length === 0
+        ? '🎉 太神啦！你今天已經 100% 完成所有習慣，連勝紀錄安全保住！'
+        : `⏳ 距離午夜 12:00 鎖定越來越近囉！你今天還有 ${unfinished.length} 個習慣尚未打卡：${unfinished.map(h => h.name).join('、')}`;
+
+      try {
+        await fetch(`https://ntfy.sh/${encodeURIComponent(topic)}`, {
+          method: 'POST',
+          body: msg,
+          headers: { 'Title': '🦉 每日習慣連勝檢查' }
+        });
+        alert('✅ 推播已發送！請查看你的 iPhone 是否有跳出 ntfy 通知！');
+      } catch (err) {
+        alert('發送失敗，請確認網路連線。');
+      }
     });
 
     initChart();
     renderDashboard();
+    setTimeout(scrollToToday, 200);
   </script>
 </body>
 </html>
