@@ -3,285 +3,417 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>習慣追蹤</title>
+  <title>習慣修煉</title>
   
   <!-- iPhone PWA 全螢幕設定 -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="習慣追蹤">
+  <meta name="apple-mobile-web-app-title" content="習慣修煉">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#58cc02">
+  <meta name="theme-color" content="#58cc02" id="meta-theme-color">
   
   <!-- App 圖示 -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2224%22 fill=%22%2358cc02%22/><text y=%22.86em%22 x=%22.12em%22 font-size=%2272%22>🦉</text></svg>">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2224%22 fill=%22%2358cc02%22/><text y=%22.86em%22 x=%22.12em%22 font-size=%2272%22>🦉</text></svg>">
 
-  <!-- 引入 Tailwind CSS、Chart.js 與彩帶特效套件 Canvas-Confetti -->
+  <!-- 引入 Tailwind CSS、Chart.js 與彩帶套件 -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  
   <style>
-    body { -webkit-tap-highlight-color: transparent; }
+    :root {
+      --primary: #58cc02;
+      --primary-dark: #46a302;
+      --bg-soft: #f7fee7;
+    }
+    body { 
+      -webkit-tap-highlight-color: transparent; 
+      background-color: #f8fafc;
+      transition: background-color 0.3s ease;
+    }
+    .theme-bg { background-color: var(--primary); }
+    .theme-text { color: var(--primary); }
+    .theme-border { border-color: var(--primary); }
+    .theme-soft-bg { background-color: var(--bg-soft); }
+
+    /* 多鄰國風立體按壓按鈕 */
     .duo-btn {
+      background-color: var(--primary);
+      box-shadow: 0 4px 0 var(--primary-dark);
       transition: all 0.1s;
-      box-shadow: 0 4px 0 #46a302;
     }
     .duo-btn:active {
       transform: translateY(4px);
-      box-shadow: 0 0px 0 #46a302;
+      box-shadow: 0 0px 0 var(--primary-dark);
     }
-    .check-cell { transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); }
-    .check-cell:active:not(:disabled) { transform: scale(0.82); }
-    @keyframes popIn {
-      0% { transform: scale(0.8); opacity: 0; }
-      70% { transform: scale(1.05); }
-      100% { transform: scale(1); opacity: 1; }
+    .duo-card {
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 0 #e2e8f0;
     }
-    .animate-pop { animation: popIn 0.35s ease-out forwards; }
+    .duo-card:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 #e2e8f0;
+    }
+    .duo-card-checked {
+      background-color: var(--bg-soft);
+      border-color: var(--primary);
+      box-shadow: 0 4px 0 var(--primary-dark);
+    }
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translateY(0) scale(0.9); }
+      100% { opacity: 0; transform: translateY(-28px) scale(1.1); }
+    }
+    .reward-toast { animation: floatUp 0.9s ease-out forwards; }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen font-sans p-3 sm:p-6 pb-16 select-none">
+<body class="text-slate-800 min-h-screen font-sans pb-24 select-none">
 
-  <div class="max-w-5xl mx-auto space-y-4 sm:space-y-5">
-    
-    <!-- 🦉 多鄰國風頂部狀態列 (火苗、寶石、經驗值與等級) -->
-    <header class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border-2 border-slate-200 flex flex-col gap-3">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2.5">
-          <div class="w-10 h-10 rounded-xl bg-[#58cc02] flex items-center justify-center text-2xl shadow-sm">🦉</div>
+  <!-- 頂部極簡狀態列 -->
+  <header class="sticky top-0 z-20 bg-white/95 backdrop-blur border-b-2 border-slate-200 px-4 py-3">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <!-- 角色頭像與等級 -->
+      <div class="flex items-center gap-2.5">
+        <div id="avatar-display" class="w-11 h-11 rounded-2xl theme-bg flex items-center justify-center text-2xl shadow-sm border-b-4 border-black/15">
+          🦉
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span class="font-extrabold text-sm text-slate-800" id="level-badge">Lv.1</span>
+            <span 
+              class="text-[11px] font-bold px-2 py-0.5 rounded-full theme-soft-bg theme-text cursor-pointer" 
+              id="multiplier-badge"
+              onclick="showAsymptoteInfo()"
+              title="點擊查看漸近線成長公式說明"
+            >💎 +5 (上限30)</span>
+          </div>
+          <!-- 迷你經驗條 -->
+          <div class="w-28 bg-slate-100 h-2 rounded-full overflow-hidden mt-1 border border-slate-200">
+            <div id="xp-bar" class="theme-bg h-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 三大核心指標：連勝、護盾、寶石 -->
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1 bg-amber-50 border-2 border-amber-200 px-2.5 py-1 rounded-xl" title="目前最高連勝">
+          <span class="text-sm">🔥</span>
+          <span class="font-extrabold text-amber-500 text-xs sm:text-sm" id="top-streak">0</span>
+        </div>
+        <div class="flex items-center gap-1 bg-indigo-50 border-2 border-indigo-200 px-2.5 py-1 rounded-xl" title="連勝護盾（忘記打卡時自動消耗保住連勝，不改歷史紀錄）">
+          <span class="text-sm">🛡️</span>
+          <span class="font-extrabold text-indigo-600 text-xs sm:text-sm" id="top-shields">0</span>
+        </div>
+        <div class="flex items-center gap-1 bg-sky-50 border-2 border-sky-200 px-2.5 py-1 rounded-xl" title="持有寶石">
+          <span class="text-sm">💎</span>
+          <span class="font-extrabold text-sky-500 text-xs sm:text-sm" id="top-gems">0</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主內容容器 -->
+  <main class="max-w-md mx-auto p-4 space-y-5">
+
+    <!-- ==================== 分頁 1：今日打卡 (預設顯示) ==================== -->
+    <section id="tab-today" class="space-y-4">
+      
+      <!-- 日期與今日進度標題 -->
+      <div class="flex items-end justify-between px-1">
+        <div>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider" id="today-date-label">TODAY</p>
+          <h1 class="text-2xl font-black text-slate-800 mt-0.5">今日任務清單</h1>
+        </div>
+        <div class="text-right">
+          <span class="text-xs font-extrabold text-slate-400">完成進度</span>
+          <p class="text-xl font-black theme-text" id="today-fraction">0 / 0</p>
+        </div>
+      </div>
+
+      <!-- 護盾觸發或休假模式橫幅提示 -->
+      <div id="status-banner" class="hidden p-3.5 rounded-2xl border-2 text-xs font-bold flex items-center gap-2.5"></div>
+
+      <!-- 全勤慶祝橫幅 -->
+      <div id="celebration-banner" class="hidden theme-bg text-white p-4 rounded-2xl shadow-md border-b-4 border-black/20 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-3xl">👑</span>
           <div>
-            <h1 class="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight">每日習慣修煉</h1>
-            <p class="text-[11px] font-bold text-slate-400" id="level-title">Lv.1 習慣新手</p>
-          </div>
-        </div>
-
-        <!-- 頂部三大遊戲指標 -->
-        <div class="flex items-center gap-2 sm:gap-3">
-          <div class="flex items-center gap-1 bg-amber-50 border-2 border-amber-200 px-2.5 py-1 rounded-xl" title="最長連續天數">
-            <span class="text-base">🔥</span>
-            <span class="font-extrabold text-amber-500 text-sm" id="top-streak">0</span>
-          </div>
-          <div class="flex items-center gap-1 bg-sky-50 border-2 border-sky-200 px-2.5 py-1 rounded-xl" title="寶石（可用於購買連勝凍結卡）">
-            <span class="text-base">💎</span>
-            <span class="font-extrabold text-sky-500 text-sm" id="top-gems">0</span>
-          </div>
-          <div class="flex items-center gap-1 bg-emerald-50 border-2 border-emerald-200 px-2.5 py-1 rounded-xl" title="總經驗值 XP">
-            <span class="text-base">⚡</span>
-            <span class="font-extrabold text-emerald-600 text-sm" id="top-xp">0 XP</span>
+            <h3 class="font-black text-base">今日任務全數達成！</h3>
+            <p class="text-xs opacity-90 font-medium">已領取全勤寶箱，歷史紀錄將於午夜 12:00 自動封存！</p>
           </div>
         </div>
       </div>
 
-      <!-- 經驗值升級進度條 -->
-      <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200 relative">
-        <div id="xp-bar" class="bg-[#58cc02] h-full transition-all duration-500 rounded-full" style="width: 0%"></div>
-      </div>
-      <div class="flex justify-between items-center text-[11px] text-slate-400 font-semibold">
-        <span id="xp-progress-text">距離下一級還需 100 XP</span>
-        <button id="buy-freeze-btn" class="text-sky-600 hover:underline flex items-center gap-1 font-bold">
-          🧊 購買「補簽冷凍卡」(50 💎) [持有: <span id="freeze-count">0</span>]
-        </button>
-      </div>
-    </header>
+      <!-- 今日任務大卡片列表 -->
+      <div id="today-habit-list" class="space-y-3"></div>
 
-    <!-- 🎉 每日全數完成的多鄰國慶祝橫幅（預設隱藏，今日全滿時跳出） -->
-    <div id="duo-celebration" class="hidden bg-[#58cc02] text-white p-4 rounded-2xl shadow-md border-b-4 border-[#46a302] animate-pop flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="text-3xl">🏆</div>
-        <div>
-          <h3 class="font-extrabold text-base sm:text-lg">太神啦！今日目標 100% 完美達成！</h3>
-          <p class="text-xs text-lime-100 font-medium">已領取今日完美通關寶箱 (+30 XP, +15 💎)，明天繼續保持連勝！</p>
-        </div>
-      </div>
-      <span class="text-2xl font-black">🔥</span>
-    </div>
-
-    <!-- 新增習慣與過期鎖定提示 -->
-    <div class="bg-white p-4 rounded-2xl shadow-sm border-2 border-slate-200 flex flex-col sm:flex-row justify-between gap-3 items-center">
-      <div class="text-xs text-slate-500 font-medium flex items-center gap-2">
-        <span class="bg-rose-100 text-rose-600 font-bold px-2 py-0.5 rounded-lg">🔒 嚴格模式</span>
-        <span>僅開放**今日（午夜 12:00 前）**打卡，過期格子將自動上鎖！</span>
-      </div>
-      <form id="add-habit-form" class="flex gap-2 w-full sm:w-auto">
-        <input 
-          type="text" 
-          id="habit-input" 
-          placeholder="輸入新習慣..." 
-          required
-          class="px-3.5 py-2 rounded-xl border-2 border-slate-200 focus:outline-none focus:border-[#58cc02] text-sm flex-1 sm:w-56 select-text font-medium"
-        />
-        <button 
-          type="submit" 
-          class="duo-btn bg-[#58cc02] hover:bg-[#4eb800] text-white px-4 py-2 rounded-xl text-sm font-extrabold whitespace-nowrap"
-        >
-          ＋ 新增目標
-        </button>
-      </form>
-    </div>
-
-    <!-- 📅 當月打卡矩陣（僅今日可點，過去日期上鎖） -->
-    <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border-2 border-slate-200">
-      <div class="flex items-center justify-between mb-3">
-        <div>
-          <h2 class="text-base sm:text-lg font-extrabold text-slate-800" id="month-matrix-title">本月打卡紀錄</h2>
-          <p class="text-xs text-slate-400">往右滑動可查看整月紀錄（點擊 🔒 可消耗「冷凍卡」補簽昨天）</p>
-        </div>
-        <button id="scroll-today-btn" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl transition">
-          定位至今日 🎯
-        </button>
-      </div>
-
-      <div class="overflow-x-auto pb-2" id="matrix-scroll-container">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="border-b-2 border-slate-100 text-xs text-slate-400" id="table-header"></tr>
-          </thead>
-          <tbody id="habit-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- 📊 當月每日打卡次數統計圖表 -->
-    <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border-2 border-slate-200">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-        <div>
-          <h2 class="text-base sm:text-lg font-extrabold text-slate-800" id="chart-month-title">當月每日打卡統計圖</h2>
-          <p class="text-xs text-slate-400">記錄這個月每一天完成了幾個目標</p>
-        </div>
-        <div class="flex gap-3 text-xs font-bold">
-          <span class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-xl border border-emerald-200" id="month-total-checkins">本月累計：0 次</span>
-          <span class="bg-amber-50 text-amber-600 px-3 py-1 rounded-xl border border-amber-200" id="month-perfect-days">完美全勤：0 天</span>
-        </div>
-      </div>
-      <div class="relative h-56 sm:h-64 w-full">
-        <canvas id="monthlyChart"></canvas>
-      </div>
-    </div>
-
-    <!-- 📱 iPhone 專屬通知中心設定 -->
-    <section class="bg-indigo-50/80 border-2 border-indigo-100 p-4 sm:p-5 rounded-2xl space-y-3">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div class="flex items-start gap-2.5">
-          <span class="text-2xl">📲</span>
-          <div>
-            <h2 class="text-sm font-extrabold text-slate-800">iPhone 未完成提醒通知設定</h2>
-            <p class="text-xs text-slate-500">設定晚上提醒時間，避免超過午夜 12:00 被系統鎖死無法打卡！</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <input 
-            type="time" 
-            id="reminder-time" 
-            value="21:30"
-            class="px-3 py-1.5 rounded-xl border-2 border-slate-200 text-sm bg-white font-bold text-slate-700"
-          />
-          <button 
-            id="calendar-alarm-btn"
-            class="bg-amber-500 active:bg-amber-600 text-white px-3 py-2 rounded-xl text-xs font-extrabold shadow-sm"
-          >
-            方法A：寫入 iPhone 行事曆鬧鐘
-          </button>
-        </div>
-      </div>
-
-      <!-- ntfy 雲端推播設定 (支援 iPhone 鎖屏通知) -->
-      <div class="pt-3 border-t border-indigo-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
-        <div class="text-slate-600">
-          <span class="font-bold text-indigo-700">方法B（支援 iPhone 推播 App `ntfy`）：</span>
-          在 App Store 下載免費的 <b>ntfy</b>，輸入自訂頻道名稱即可測試鎖屏推播：
-        </div>
-        <div class="flex gap-2 w-full sm:w-auto">
+      <!-- 收合式新增任務區 -->
+      <div class="pt-2">
+        <form id="add-habit-form" class="flex gap-2">
           <input 
             type="text" 
-            id="ntfy-topic" 
-            placeholder="輸入頻道名 (如 alex-habit)" 
-            class="px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs flex-1 sm:w-44 select-text"
+            id="habit-input" 
+            placeholder="＋ 新增一項每日任務..." 
+            required
+            class="px-4 py-3 rounded-2xl border-2 border-slate-200 bg-white focus:outline-none focus:border-slate-400 text-sm flex-1 select-text font-bold"
           />
           <button 
-            id="ntfy-test-btn"
-            class="bg-indigo-600 active:bg-indigo-700 text-white px-3 py-1.5 rounded-xl font-bold whitespace-nowrap"
+            type="submit" 
+            class="duo-btn text-white px-5 py-3 rounded-2xl text-sm font-black whitespace-nowrap"
           >
-            發送 iPhone 推播檢查
+            新增
           </button>
-        </div>
+        </form>
+        <p class="text-[11px] text-center text-slate-400 mt-2 font-medium">
+          🔒 嚴格模式：僅限今日午夜 12:00 前打卡，過期紀錄永久封存無法修改
+        </p>
       </div>
     </section>
 
-  </div>
+    <!-- ==================== 分頁 2：寶石商店與小確幸 ==================== -->
+    <section id="tab-shop" class="hidden space-y-6">
+      
+      <!-- 商店頂部看板 + 漸近線成長狀態 -->
+      <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-black text-slate-800">💎 寶石補給與小確幸商店</h2>
+            <p class="text-xs text-slate-400 font-medium mt-0.5">採用「邊際遞減漸近線模型」，物價穩定不通膨！</p>
+          </div>
+          <div class="bg-sky-50 border-2 border-sky-200 px-3 py-1.5 rounded-xl font-black text-sky-500 text-sm">
+            💎 <span id="shop-gems">0</span>
+          </div>
+        </div>
+        <!-- 漸近線收斂進度條 -->
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1.5">
+          <div class="flex justify-between font-extrabold text-slate-700">
+            <span id="asymptote-detail-text">📈 當前單次打卡產量：+5 💎</span>
+            <span class="text-sky-600">理論漸近線極限：30 💎</span>
+          </div>
+          <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+            <div id="asymptote-bar" class="bg-sky-500 h-full transition-all duration-500" style="width: 16%"></div>
+          </div>
+          <p class="text-[11px] text-slate-400 font-medium">
+            公式：$5 + 10\cdot\frac{L-1}{L+7} + 15\cdot\frac{S}{S+14}$（前期快速成長，後期平緩收斂至 30 💎）
+          </p>
+        </div>
+      </div>
+
+      <!-- 1. 連勝保護道具 -->
+      <div class="space-y-2.5">
+        <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider px-1">🛡️ 連勝防禦道具（不竄改過去紀錄）</h3>
+        <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-50 border-2 border-indigo-200 flex items-center justify-center text-2xl">🛡️</div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h4 class="font-extrabold text-sm text-slate-800">連勝護盾 (Streak Shield)</h4>
+                <span class="text-[11px] bg-indigo-100 text-indigo-700 font-extrabold px-2 py-0.5 rounded-full" id="shield-stock-badge">持有 0 / 3</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">若昨天忘記打卡，自動消耗 1 個護盾保護連勝不歸零（歷史紀錄仍維持未完成）。</p>
+            </div>
+          </div>
+          <button onclick="buyShield()" class="duo-btn text-white px-3.5 py-2 rounded-xl text-xs font-black whitespace-nowrap">
+            💎 40 購買
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. 小確幸券（偷懶一天或犒賞自己） -->
+      <div class="space-y-2.5">
+        <div class="flex items-center justify-between px-1">
+          <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">🎟️ 現實小確幸與偷懶券</h3>
+          <span class="text-[11px] text-slate-400 font-bold">可自訂專屬獎勵</span>
+        </div>
+        
+        <div id="vouchers-list" class="space-y-2.5"></div>
+
+        <!-- 自訂新增小確幸商品 -->
+        <form id="add-voucher-form" class="bg-slate-100 p-3 rounded-2xl border-2 border-dashed border-slate-300 flex gap-2">
+          <input type="text" id="voucher-name" placeholder="自訂獎勵（如：吃宵夜、買新書）" required class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold flex-1 select-text" />
+          <input type="number" id="voucher-cost" placeholder="💎價格" min="10" max="9999" required class="px-2.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold w-20 select-text" />
+          <button type="submit" class="bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap">＋新增</button>
+        </form>
+
+        <!-- 我的背包 -->
+        <div class="bg-amber-50/70 border-2 border-amber-200 p-3.5 rounded-2xl space-y-2">
+          <h4 class="text-xs font-extrabold text-amber-800 flex items-center gap-1.5">
+            <span>🎒 我的小確幸背包（點擊即可撕票兌換）</span>
+          </h4>
+          <div id="inventory-vouchers" class="flex flex-wrap gap-2 text-xs"></div>
+        </div>
+      </div>
+
+      <!-- 3. 人物造型商店 -->
+      <div class="space-y-2.5">
+        <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider px-1">🎭 夥伴角色造型</h3>
+        <div id="avatars-grid" class="grid grid-cols-3 gap-2.5"></div>
+      </div>
+
+      <!-- 4. 主題外觀配色 -->
+      <div class="space-y-2.5">
+        <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider px-1">🎨 介面主題外觀</h3>
+        <div id="themes-grid" class="grid grid-cols-2 gap-2.5"></div>
+      </div>
+
+    </section>
+
+    <!-- ==================== 分頁 3：當月統計與提醒 ==================== -->
+    <section id="tab-stats" class="hidden space-y-5">
+      
+      <!-- 當月數據總覽 -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-white p-4 rounded-2xl border-2 border-slate-200">
+          <p class="text-xs font-bold text-slate-400">本月累計打卡</p>
+          <p class="text-2xl font-black text-slate-800 mt-1" id="stat-month-total">0 次</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border-2 border-slate-200">
+          <p class="text-xs font-bold text-slate-400">本月完美全勤</p>
+          <p class="text-2xl font-black text-amber-500 mt-1" id="stat-perfect-days">0 天</p>
+        </div>
+      </div>
+
+      <!-- 當月每日打卡次數長條圖 -->
+      <div class="bg-white p-4 rounded-2xl border-2 border-slate-200">
+        <h2 class="text-base font-extrabold text-slate-800" id="chart-month-title">📊 當月每日打卡紀錄</h2>
+        <p class="text-xs text-slate-400 mb-3">歷史數據於每日午夜 12:00 鎖定封存</p>
+        <div class="relative h-56 w-full">
+          <canvas id="monthlyChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 漸近線成長曲線預覽圖 -->
+      <div class="bg-white p-4 rounded-2xl border-2 border-slate-200">
+        <h2 class="text-base font-extrabold text-slate-800">📈 寶石漸近線成長曲線（飽和模型）</h2>
+        <p class="text-xs text-slate-400 mb-3">隨連勝天數增加的單次寶石獎勵（水平漸近線上限 = 30 💎）</p>
+        <div class="relative h-44 w-full">
+          <canvas id="asymptoteChart"></canvas>
+        </div>
+      </div>
+
+      <!-- iPhone 通知設定 -->
+      <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">📲</span>
+          <div>
+            <h3 class="text-sm font-extrabold text-slate-800">iPhone 鎖定畫面提醒</h3>
+            <p class="text-xs text-slate-400">在午夜 12:00 關門前提醒自己打卡保住連勝</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="time" id="reminder-time" value="21:30" class="px-3 py-2 rounded-xl border-2 border-slate-200 text-sm font-bold flex-1" />
+          <button id="calendar-alarm-btn" class="duo-btn text-white px-4 py-2.5 rounded-xl text-xs font-black">
+            寫入 iPhone 行事曆鬧鐘
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- 底部極簡導覽列 -->
+  <nav class="fixed bottom-0 left-0 right-0 z-30 bg-white border-t-2 border-slate-200 px-4 py-2">
+    <div class="max-w-md mx-auto grid grid-cols-3 gap-2">
+      <button onclick="switchTab('today')" id="nav-today" class="flex flex-col items-center py-1 rounded-xl font-extrabold text-xs theme-text theme-soft-bg">
+        <span class="text-lg">✅</span>
+        <span class="mt-0.5">今日任務</span>
+      </button>
+      <button onclick="switchTab('shop')" id="nav-shop" class="flex flex-col items-center py-1 rounded-xl font-bold text-xs text-slate-400 hover:text-slate-600">
+        <span class="text-lg">🏪</span>
+        <span class="mt-0.5">寶石商店</span>
+      </button>
+      <button onclick="switchTab('stats')" id="nav-stats" class="flex flex-col items-center py-1 rounded-xl font-bold text-xs text-slate-400 hover:text-slate-600">
+        <span class="text-lg">📊</span>
+        <span class="mt-0.5">當月紀錄</span>
+      </button>
+    </div>
+  </nav>
 
   <script>
-    // --- 1. 產生多鄰國風格音效 (Web Audio API，免外部音檔) ---
+    // --- 1. 音效合成器 (Web Audio API) ---
     const playSound = (type) => {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const now = ctx.currentTime;
         if (type === 'ding') {
-          // 單項打勾清脆雙音
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(587.33, now); // D5
-          osc.frequency.setValueAtTime(880, now + 0.09); // A5
+          osc.frequency.setValueAtTime(587.33, now);
+          osc.frequency.setValueAtTime(880, now + 0.08);
+          gain.gain.setValueAtTime(0.22, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(now); osc.stop(now + 0.3);
+        } else if (type === 'buy') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.07);
+          osc.frequency.setValueAtTime(1046.5, now + 0.14);
           gain.gain.setValueAtTime(0.25, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now);
-          osc.stop(now + 0.35);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(now); osc.stop(now + 0.4);
         } else if (type === 'fanfare') {
-          // 今日全滿過關和弦音效
-          const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-          notes.forEach((freq, idx) => {
+          [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(freq, now + idx * 0.08);
-            gain.gain.setValueAtTime(0.3, now + idx * 0.08);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.5);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(now + idx * 0.08);
-            osc.stop(now + idx * 0.08 + 0.5);
+            gain.gain.setValueAtTime(0.28, now + idx * 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.45);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(now + idx * 0.08); osc.stop(now + idx * 0.08 + 0.45);
           });
         }
       } catch (e) {}
     };
 
-    // --- 2. 取得當月所有日期資訊 ---
-    const nowDate = new Date();
-    const currentYear = nowDate.getFullYear();
-    const currentMonth = nowDate.getMonth(); // 0-11
-    const todayDateNum = nowDate.getDate();
-
+    // --- 2. 日期工具 ---
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const todayNum = now.getDate();
     const formatKey = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const todayKey = formatKey(currentYear, currentMonth, todayDateNum);
+    const todayKey = formatKey(currentYear, currentMonth, todayNum);
 
-    // 計算昨天 Key（供冷凍補簽卡使用）
-    const yesterdayObj = new Date(currentYear, currentMonth, todayDateNum - 1);
-    const yesterdayKey = formatKey(yesterdayObj.getFullYear(), yesterdayObj.getMonth(), yesterdayObj.getDate());
-
-    const getDaysInCurrentMonth = () => {
-      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-      const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
-      const list = [];
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateObj = new Date(currentYear, currentMonth, d);
-        const key = formatKey(currentYear, currentMonth, d);
-        list.push({
-          dayNum: d,
-          key: key,
-          weekDay: dayNames[dateObj.getDay()],
-          isToday: key === todayKey,
-          isPast: d < todayDateNum,
-          isFuture: d > todayDateNum
-        });
+    const getMonthDays = () => {
+      const total = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const arr = [];
+      for (let d = 1; d <= total; d++) {
+        arr.push({ dayNum: d, key: formatKey(currentYear, currentMonth, d), isToday: d === todayNum });
       }
-      return list;
+      return arr;
     };
+    const monthDays = getMonthDays();
 
-    const monthDays = getDaysInCurrentMonth();
+    // --- 3. 商店目錄 ---
+    const AVATAR_CATALOG = [
+      { id: 'owl', icon: '🦉', name: '多鄰國貓頭鷹', cost: 0 },
+      { id: 'cat', icon: '🐱', name: '慵懶橘貓', cost: 60 },
+      { id: 'shiba', icon: '🐕', name: '元氣柴犬', cost: 80 },
+      { id: 'astro', icon: '🧑‍🚀', name: '太空探險家', cost: 120 },
+      { id: 'wizard', icon: '🧙‍♂️', name: '時間大法師', cost: 180 },
+      { id: 'dragon', icon: '🐉', name: '傳奇金龍', cost: 300 }
+    ];
 
-    // --- 3. 讀取與儲存習慣與遊戲化狀態 ---
+    const THEME_CATALOG = [
+      { id: 'duo', name: '多鄰國翠綠', primary: '#58cc02', dark: '#46a302', soft: '#f7fee7', cost: 0 },
+      { id: 'ocean', name: '深海冰晶藍', primary: '#0ea5e9', dark: '#0284c7', soft: '#f0f9ff', cost: 80 },
+      { id: 'sunset', name: '落日珊瑚橘', primary: '#f97316', dark: '#ea580c', soft: '#fff7ed', cost: 100 },
+      { id: 'royal', name: '星夜極光紫', primary: '#8b5cf6', dark: '#7c3aed', soft: '#f5f3ff', cost: 150 }
+    ];
+
+    const DEFAULT_VOUCHERS = [
+      { id: 'lazy_pass', icon: '🛋️', name: '今日合法偷懶券（免打卡保連勝）', cost: 100, isLazyPass: true },
+      { id: 'boba', icon: '🧋', name: '犒賞自己喝一杯手搖飲', cost: 60, isLazyPass: false },
+      { id: 'game', icon: '🎮', name: '無罪惡感打電動 / 追劇 1 小時', cost: 80, isLazyPass: false }
+    ];
+
+    // --- 4. 狀態讀取 ---
     const defaultHabits = [
       { id: 1, name: '🎹 專注練琴 30 分鐘', history: {} },
       { id: 2, name: '🇪🇸 西語單字與文法', history: {} },
@@ -289,208 +421,395 @@
       { id: 4, name: '🌙 00:30 前準時就寢', history: {} }
     ];
 
-    let habits = JSON.parse(localStorage.getItem('duo_habits_v2')) || defaultHabits;
-    let gameStats = JSON.parse(localStorage.getItem('duo_gamestats_v2')) || {
+    let habits = JSON.parse(localStorage.getItem('clean_habits_v3')) 
+              || JSON.parse(localStorage.getItem('duo_habits_v2')) 
+              || defaultHabits;
+
+    let appState = JSON.parse(localStorage.getItem('clean_state_v3')) || {
       xp: 0,
-      gems: 50, // 初始贈送 50 寶石
-      freezes: 1, // 初始贈送 1 張連勝凍結卡
-      rewardedDays: {} // 記錄哪幾天已經領過全勤寶箱
+      gems: 80,
+      shields: 1,
+      protectedDays: {},
+      shieldBannerMsg: '',
+      lastCheckDate: todayKey,
+      unlockedAvatars: ['owl'],
+      currentAvatar: 'owl',
+      unlockedThemes: ['duo'],
+      currentTheme: 'duo',
+      customVouchers: DEFAULT_VOUCHERS,
+      voucherBag: [],
+      rewardedDays: {}
     };
 
     const saveAll = () => {
-      localStorage.setItem('duo_habits_v2', JSON.stringify(habits));
-      localStorage.setItem('duo_gamestats_v2', JSON.stringify(gameStats));
+      localStorage.setItem('clean_habits_v3', JSON.stringify(habits));
+      localStorage.setItem('clean_state_v3', JSON.stringify(appState));
     };
 
-    // --- 4. 計算連續天數 (Streak) ---
-    const calculateStreak = (history) => {
+    // --- 5. 計算連勝與護盾保護邏輯 ---
+    const calculateHabitStreak = (habit) => {
       let streak = 0;
       for (let i = 0; i < 365; i++) {
-        const d = new Date(currentYear, currentMonth, todayDateNum - i);
+        const d = new Date(currentYear, currentMonth, todayNum - i);
         const key = formatKey(d.getFullYear(), d.getMonth(), d.getDate());
-        if (history[key]) {
+        if (habit.history[key]) {
           streak++;
+        } else if (appState.protectedDays[key]) {
+          continue;
         } else {
-          if (i === 0) continue; // 今天還沒結束前不歸零
+          if (i === 0) continue;
           break;
         }
       }
       return streak;
     };
 
-    // --- 5. 初始化當月 Chart.js 圖表 ---
-    let chartInstance = null;
-    const initChart = () => {
-      const ctx = document.getElementById('monthlyChart').getContext('2d');
-      chartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: monthDays.map(d => `${d.dayNum}日`),
-          datasets: [{
-            label: '完成目標數',
-            data: [],
-            backgroundColor: monthDays.map(d => d.isToday ? '#58cc02' : '#38bdf8'),
-            borderRadius: 5,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: { stepSize: 1 },
-              suggestedMax: Math.max(habits.length, 4)
-            },
-            x: {
-              grid: { display: false },
-              ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 15 }
-            }
-          },
-          plugins: {
-            legend: { display: false }
-          }
+    const checkYesterdayShield = () => {
+      if (appState.lastCheckDate === todayKey) return;
+      const yestObj = new Date(currentYear, currentMonth, todayNum - 1);
+      const yestKey = formatKey(yestObj.getFullYear(), yestObj.getMonth(), yestObj.getDate());
+
+      const missedYesterday = habits.length > 0 && habits.some(h => !h.history[yestKey]);
+      if (missedYesterday && !appState.protectedDays[yestKey]) {
+        if (appState.shields > 0) {
+          appState.shields -= 1;
+          appState.protectedDays[yestKey] = 'shield';
+          appState.shieldBannerMsg = `🛡️ 昨天（${yestKey}）有未完成的任務，已自動消耗 1 個「連勝護盾」保護連勝！（歷史紀錄維持原樣）`;
+        } else {
+          appState.shieldBannerMsg = `💔 昨天（${yestKey}）未完成且無護盾，部分連勝已歸零。`;
         }
+      }
+      appState.lastCheckDate = todayKey;
+      saveAll();
+    };
+    checkYesterdayShield();
+
+    // --- 6. 漸近線飽和寶石公式 (Michaelis-Menten Asymptotic Model) ---
+    // 上限 ASYMPTOTE_CAP = 5 (基礎) + 10 (等級漸近線) + 15 (連勝漸近線) = 30 💎
+    const ASYMPTOTE_CAP = 30;
+    const getLevel = () => Math.floor(appState.xp / 100) + 1;
+
+    const getMaxStreak = () => {
+      let max = 0;
+      habits.forEach(h => {
+        const s = calculateHabitStreak(h);
+        if (s > max) max = s;
       });
+      return max;
     };
 
-    // --- 6. 渲染主畫面 ---
-    const renderDashboard = () => {
-      const monthLabel = `${currentYear} 年 ${currentMonth + 1} 月`;
-      document.getElementById('month-matrix-title').textContent = `📅 ${monthLabel} 打卡紀錄表`;
-      document.getElementById('chart-month-title').textContent = `📊 ${monthLabel} 每日完成趨勢`;
+    const calculateGemReward = (habitStreak, customLevel = null) => {
+      const lvl = customLevel !== null ? customLevel : getLevel();
+      const base = 5;
+      // 等級漸近線：最大 +10，半飽和點 K_L = 8 (在 Lv.9 時達到 +5)
+      const levelBonus = 10 * ((lvl - 1) / ((lvl - 1) + 8));
+      // 連勝漸近線：最大 +15，半飽和點 K_S = 14 (在連勝 14 天時達到 +7.5)
+      const streakBonus = 15 * (habitStreak / (habitStreak + 14));
+      return base + Math.round(levelBonus + streakBonus);
+    };
 
-      // 更新頂部多鄰國經驗值與等級
-      const level = Math.floor(gameStats.xp / 100) + 1;
-      const xpInLevel = gameStats.xp % 100;
-      const titles = ['習慣新手', '自律學徒', '連勝守衛', '時間管理大師', '傳奇修行者'];
-      const titleText = titles[Math.min(level - 1, titles.length - 1)];
+    window.showAsymptoteInfo = () => {
+      const lvl = getLevel();
+      const maxS = getMaxStreak();
+      const cur = calculateGemReward(maxS);
+      alert(
+        `📐 漸近線寶石成長模型 (上限 ${ASYMPTOTE_CAP} 💎)\n\n` +
+        `• 基礎保底：5 💎\n` +
+        `• 等級加成 (Lv.${lvl})：+${(10 * ((lvl - 1) / (lvl + 7))).toFixed(1)} 💎 (上限 +10)\n` +
+        `• 連勝加成 (${maxS}天)：+${(15 * (maxS / (maxS + 14))).toFixed(1)} 💎 (上限 +15)\n\n` +
+        `👉 目前單次打卡可得：${cur} 💎\n` +
+        `（前期成長快，後期斜率趨緩，永遠不會超過 30 💎，防止商店通貨膨脹！）`
+      );
+    };
 
-      document.getElementById('level-title').textContent = `Lv.${level} ${titleText}`;
-      document.getElementById('top-gems').textContent = gameStats.gems;
-      document.getElementById('top-xp').textContent = `${gameStats.xp} XP`;
+    // --- 7. 套用主題外觀與角色 ---
+    const applyThemeAndAvatar = () => {
+      const theme = THEME_CATALOG.find(t => t.id === appState.currentTheme) || THEME_CATALOG[0];
+      document.documentElement.style.setProperty('--primary', theme.primary);
+      document.documentElement.style.setProperty('--primary-dark', theme.dark);
+      document.documentElement.style.setProperty('--bg-soft', theme.soft);
+      document.getElementById('meta-theme-color').setAttribute('content', theme.primary);
+
+      const avatar = AVATAR_CATALOG.find(a => a.id === appState.currentAvatar) || AVATAR_CATALOG[0];
+      document.getElementById('avatar-display').textContent = avatar.icon;
+    };
+
+    // --- 8. 渲染主畫面 ---
+    let chartInstance = null;
+    let asymptoteChartInstance = null;
+
+    const renderAll = () => {
+      applyThemeAndAvatar();
+
+      const lvl = getLevel();
+      const xpInLevel = appState.xp % 100;
+      const maxStreak = getMaxStreak();
+      const sampleReward = calculateGemReward(maxStreak);
+      const asymptotePercent = Math.round((sampleReward / ASYMPTOTE_CAP) * 100);
+
+      // 頂部狀態列更新
+      document.getElementById('level-badge').textContent = `Lv.${lvl}`;
+      document.getElementById('multiplier-badge').textContent = `💎 +${sampleReward} (漸近上限${ASYMPTOTE_CAP})`;
       document.getElementById('xp-bar').style.width = `${xpInLevel}%`;
-      document.getElementById('xp-progress-text').textContent = `目前等級進度：${xpInLevel} / 100 XP`;
-      document.getElementById('freeze-count').textContent = gameStats.freezes;
+      document.getElementById('top-streak').textContent = maxStreak;
+      document.getElementById('top-shields').textContent = appState.shields;
+      document.getElementById('top-gems').textContent = appState.gems;
+      document.getElementById('shop-gems').textContent = appState.gems;
 
-      // 渲染當月表頭
-      document.getElementById('table-header').innerHTML = `
-        <th class="py-2.5 pr-3 font-extrabold text-slate-700 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">每日習慣</th>
-        <th class="py-2.5 px-2 text-center font-bold">連勝</th>
-        ${monthDays.map(d => `
-          <th id="th-day-${d.dayNum}" class="py-2 px-1.5 text-center min-w-[42px] ${d.isToday ? 'bg-lime-50 rounded-t-xl' : ''}">
-            <div class="text-[10px] ${d.isToday ? 'text-[#58cc02] font-black' : 'text-slate-400'}">${d.isToday ? '今日' : d.weekDay}</div>
-            <div class="text-xs ${d.isToday ? 'text-[#58cc02] font-black' : 'text-slate-600'}">${d.dayNum}</div>
-          </th>
-        `).join('')}
-        <th class="py-2.5 pl-2"></th>
-      `;
+      // 商店漸近線進度條
+      document.getElementById('asymptote-detail-text').textContent = `📈 當前最高單次產量：+${sampleReward} 💎 (${asymptotePercent}%)`;
+      document.getElementById('asymptote-bar').style.width = `${asymptotePercent}%`;
 
-      // 渲染每一列習慣（非今日全部上鎖 🔒）
-      document.getElementById('habit-tbody').innerHTML = habits.map(habit => {
-        const streak = calculateStreak(habit.history);
+      // 日期與完成度
+      const weekNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+      document.getElementById('today-date-label').textContent = `${currentMonth + 1}月${todayNum}日 · ${weekNames[now.getDay()]}`;
+      
+      const doneTodayCount = habits.filter(h => h.history[todayKey]).length;
+      document.getElementById('today-fraction').textContent = `${doneTodayCount} / ${habits.length}`;
+
+      // 狀態提示橫幅
+      const statusBanner = document.getElementById('status-banner');
+      if (appState.protectedDays[todayKey] === 'lazy') {
+        statusBanner.className = 'p-3.5 rounded-2xl border-2 border-amber-300 bg-amber-50 text-amber-800 text-xs font-bold flex items-center gap-2.5';
+        statusBanner.innerHTML = `<span>🛋️</span><span>今日已啟用「合法偷懶券」！今天不打卡也不會斷連勝，好好休息吧！</span>`;
+        statusBanner.classList.remove('hidden');
+      } else if (appState.shieldBannerMsg) {
+        statusBanner.className = 'p-3.5 rounded-2xl border-2 border-indigo-200 bg-indigo-50 text-indigo-800 text-xs font-bold flex items-center justify-between gap-2';
+        statusBanner.innerHTML = `<span>${appState.shieldBannerMsg}</span><button onclick="dismissBanner()" class="text-slate-400 font-black px-1">✕</button>`;
+        statusBanner.classList.remove('hidden');
+      } else {
+        statusBanner.classList.add('hidden');
+      }
+
+      // 全勤橫幅
+      const celebBanner = document.getElementById('celebration-banner');
+      if (habits.length > 0 && doneTodayCount === habits.length) {
+        celebBanner.classList.remove('hidden');
+      } else {
+        celebBanner.classList.add('hidden');
+      }
+
+      // 渲染極簡今日任務大卡片
+      const listEl = document.getElementById('today-habit-list');
+      if (habits.length === 0) {
+        listEl.innerHTML = `<div class="bg-white p-8 rounded-2xl border-2 border-slate-200 text-center text-slate-400 font-bold text-sm">目前還沒有任務，在下方新增一個吧！</div>`;
+      } else {
+        listEl.innerHTML = habits.map(habit => {
+          const checked = !!habit.history[todayKey];
+          const streak = calculateHabitStreak(habit);
+          const expectedGem = calculateGemReward(checked ? Math.max(0, streak - 1) : streak);
+
+          return `
+            <div 
+              onclick="toggleToday(${habit.id}, event)"
+              class="duo-card cursor-pointer bg-white p-4 rounded-2xl border-2 ${checked ? 'duo-card-checked' : 'border-slate-200 hover:border-slate-300'} flex items-center justify-between gap-3 relative"
+            >
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center font-black text-lg border-2 transition ${
+                  checked ? 'theme-bg text-white border-transparent' : 'bg-slate-100 border-slate-300 text-transparent'
+                }">
+                  ✓
+                </div>
+                <div class="truncate">
+                  <p class="font-extrabold text-base ${checked ? 'line-through text-slate-500' : 'text-slate-800'} truncate">${habit.name}</p>
+                  <div class="flex items-center gap-2 mt-0.5 text-xs font-bold">
+                    <span class="${streak > 0 ? 'text-amber-500' : 'text-slate-400'}">🔥 連勝 ${streak} 天</span>
+                    <span class="text-sky-500">· 完成 +${expectedGem} 💎</span>
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                onclick="deleteHabit(${habit.id}, event)" 
+                class="text-slate-300 hover:text-rose-500 p-1.5 text-sm font-black"
+                title="刪除任務"
+              >✕</button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      renderShop();
+      renderStats();
+    };
+
+    // --- 9. 渲染寶石商店 ---
+    const renderShop = () => {
+      document.getElementById('shield-stock-badge').textContent = `持有 ${appState.shields} / 3`;
+
+      document.getElementById('vouchers-list').innerHTML = appState.customVouchers.map(v => `
+        <div class="bg-white p-3.5 rounded-2xl border-2 border-slate-200 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-xl">${v.icon || '🎟️'}</div>
+            <div>
+              <h4 class="font-extrabold text-sm text-slate-800">${v.name}</h4>
+              <p class="text-[11px] text-slate-400 font-bold">${v.isLazyPass ? '使用後今日免打卡也不斷連勝' : '存入背包，隨時可兌換犒賞自己'}</p>
+            </div>
+          </div>
+          <button onclick="buyVoucher('${v.id}')" class="duo-btn text-white px-3 py-2 rounded-xl text-xs font-black whitespace-nowrap">
+            💎 ${v.cost}
+          </button>
+        </div>
+      `).join('');
+
+      const bagEl = document.getElementById('inventory-vouchers');
+      if (appState.voucherBag.length === 0) {
+        bagEl.innerHTML = `<span class="text-slate-400 font-medium">目前背包空空的，努力打卡賺寶石來買小確幸吧！</span>`;
+      } else {
+        bagEl.innerHTML = appState.voucherBag.map((item, idx) => `
+          <button 
+            onclick="useVoucherFromBag(${idx})"
+            class="bg-white border-2 border-amber-300 hover:bg-amber-100 text-amber-900 px-3 py-1.5 rounded-xl font-extrabold flex items-center gap-1.5 shadow-sm"
+          >
+            <span>${item.icon || '🎟️'}</span>
+            <span>${item.name}</span>
+            <span class="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded-md">點我兌換</span>
+          </button>
+        `).join('');
+      }
+
+      document.getElementById('avatars-grid').innerHTML = AVATAR_CATALOG.map(a => {
+        const owned = appState.unlockedAvatars.includes(a.id);
+        const equipped = appState.currentAvatar === a.id;
         return `
-          <tr>
-            <td class="py-3 pr-3 font-bold text-slate-800 whitespace-nowrap sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">${habit.name}</td>
-            <td class="py-3 px-2 text-center whitespace-nowrap">
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold ${
-                streak > 0 ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'
-              }">🔥${streak}</span>
-            </td>
-            ${monthDays.map(d => {
-              const checked = !!habit.history[d.key];
-              if (d.isToday) {
-                // 只有今天可以自由點擊打卡
-                return `
-                  <td class="py-2.5 px-1 text-center bg-lime-50/60">
-                    <button 
-                      onclick="toggleTodayHabit(${habit.id})"
-                      class="check-cell w-8 h-8 rounded-xl inline-flex items-center justify-center font-black border-2 ${
-                        checked 
-                          ? 'bg-[#58cc02] border-[#46a302] text-white shadow-[0_2px_0_#46a302]' 
-                          : 'bg-white border-slate-300 text-transparent hover:border-[#58cc02]'
-                      }"
-                    >✓</button>
-                  </td>
-                `;
-              } else if (d.isPast) {
-                // 已經超過午夜 12 點的過去日期：上鎖！
-                return `
-                  <td class="py-2.5 px-1 text-center">
-                    <button 
-                      onclick="tryLockedDay(${habit.id}, '${d.key}')"
-                      class="w-7 h-7 rounded-lg inline-flex items-center justify-center text-xs border ${
-                        checked 
-                          ? 'bg-emerald-500/80 border-emerald-600 text-white cursor-not-allowed' 
-                          : 'bg-slate-100 border-slate-200 text-slate-300 cursor-pointer hover:bg-sky-50'
-                      }"
-                      title="${checked ? '已完成（已鎖定）' : '已過午夜 12:00 鎖定（點擊可使用冷凍卡補簽）'}"
-                    >${checked ? '✓' : '🔒'}</button>
-                  </td>
-                `;
-              } else {
-                // 未來日期：禁止點擊
-                return `
-                  <td class="py-2.5 px-1 text-center">
-                    <span class="w-7 h-7 rounded-lg inline-flex items-center justify-center text-xs bg-slate-50 text-slate-200 border border-slate-100 cursor-not-allowed">·</span>
-                  </td>
-                `;
-              }
-            }).join('')}
-            <td class="py-3 pl-2 text-right">
-              <button onclick="deleteHabit(${habit.id})" class="text-slate-300 hover:text-rose-500 px-1.5 font-bold">✕</button>
-            </td>
-          </tr>
+          <div class="bg-white p-3 rounded-2xl border-2 ${equipped ? 'theme-border theme-soft-bg' : 'border-slate-200'} flex flex-col items-center text-center justify-between gap-2">
+            <div class="text-3xl mt-1">${a.icon}</div>
+            <p class="text-xs font-extrabold text-slate-700">${a.name}</p>
+            <button 
+              onclick="handleAvatar('${a.id}')"
+              class="w-full py-1.5 rounded-xl text-xs font-black ${
+                equipped ? 'bg-slate-800 text-white' : owned ? 'bg-slate-200 text-slate-700' : 'duo-btn text-white'
+              }"
+            >
+              ${equipped ? '使用中' : owned ? '換裝' : `💎 ${a.cost}`}
+            </button>
+          </div>
         `;
       }).join('');
 
-      // 統計當月數據與最長連勝
-      let maxStreak = 0;
+      document.getElementById('themes-grid').innerHTML = THEME_CATALOG.map(t => {
+        const owned = appState.unlockedThemes.includes(t.id);
+        const equipped = appState.currentTheme === t.id;
+        return `
+          <div class="bg-white p-3.5 rounded-2xl border-2 ${equipped ? 'theme-border theme-soft-bg' : 'border-slate-200'} flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-7 h-7 rounded-full border-2 border-black/10" style="background:${t.primary}"></div>
+              <span class="text-xs font-extrabold text-slate-800">${t.name}</span>
+            </div>
+            <button 
+              onclick="handleTheme('${t.id}')"
+              class="px-3 py-1.5 rounded-xl text-xs font-black ${
+                equipped ? 'bg-slate-800 text-white' : owned ? 'bg-slate-200 text-slate-700' : 'duo-btn text-white'
+              }"
+            >
+              ${equipped ? '使用中' : owned ? '套用' : `💎 ${t.cost}`}
+            </button>
+          </div>
+        `;
+      }).join('');
+    };
+
+    // --- 10. 渲染當月統計圖表 + 漸近線預覽圖 ---
+    const renderStats = () => {
+      document.getElementById('chart-month-title').textContent = `📊 ${currentYear} 年 ${currentMonth + 1} 月每日完成次數`;
       let monthTotal = 0;
       let perfectDays = 0;
 
-      habits.forEach(h => {
-        const s = calculateStreak(h.history);
-        if (s > maxStreak) maxStreak = s;
+      const dailyCounts = monthDays.map(d => {
+        let c = 0;
+        habits.forEach(h => { if (h.history[d.key]) c++; });
+        monthTotal += c;
+        if (habits.length > 0 && c === habits.length) perfectDays++;
+        return c;
       });
 
-      const monthlyDailyCounts = monthDays.map(d => {
-        let count = 0;
-        habits.forEach(h => { if (h.history[d.key]) count++; });
-        monthTotal += count;
-        if (habits.length > 0 && count === habits.length) perfectDays++;
-        return count;
-      });
+      document.getElementById('stat-month-total').textContent = `${monthTotal} 次`;
+      document.getElementById('stat-perfect-days').textContent = `${perfectDays} 天`;
 
-      document.getElementById('top-streak').textContent = maxStreak;
-      document.getElementById('month-total-checkins').textContent = `本月累計：${monthTotal} 次`;
-      document.getElementById('month-perfect-days').textContent = `完美全勤：${perfectDays} 天`;
+      const theme = THEME_CATALOG.find(t => t.id === appState.currentTheme) || THEME_CATALOG[0];
 
-      // 檢查今日是否 100% 全部完成（觸發多鄰國慶祝橫幅）
-      const todayDoneCount = habits.filter(h => h.history[todayKey]).length;
-      const isAllDoneToday = habits.length > 0 && todayDoneCount === habits.length;
-      const banner = document.getElementById('duo-celebration');
-      if (isAllDoneToday) {
-        banner.classList.remove('hidden');
+      if (!chartInstance) {
+        const ctx = document.getElementById('monthlyChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: monthDays.map(d => `${d.dayNum}日`),
+            datasets: [{
+              data: dailyCounts,
+              backgroundColor: monthDays.map(d => d.isToday ? theme.primary : '#94a3b8'),
+              borderRadius: 5
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { beginAtZero: true, ticks: { stepSize: 1 }, suggestedMax: Math.max(habits.length, 4) },
+              x: { grid: { display: false }, ticks: { font: { size: 10 }, maxTicksLimit: 15 } }
+            },
+            plugins: { legend: { display: false } }
+          }
+        });
       } else {
-        banner.classList.add('hidden');
-      }
-
-      // 更新當月圖表
-      if (chartInstance) {
-        chartInstance.data.datasets[0].data = monthlyDailyCounts;
+        chartInstance.data.datasets[0].data = dailyCounts;
+        chartInstance.data.datasets[0].backgroundColor = monthDays.map(d => d.isToday ? theme.primary : '#cbd5e1');
         chartInstance.options.scales.y.suggestedMax = Math.max(habits.length, 4);
         chartInstance.update();
       }
+
+      // 渲染漸近線數學曲線圖 (連勝 0 ~ 90 天的寶石產量收斂圖)
+      const streakSamplePoints = [0, 3, 7, 14, 21, 30, 45, 60, 90];
+      const curveData = streakSamplePoints.map(s => calculateGemReward(s, getLevel()));
+      const capLine = streakSamplePoints.map(() => ASYMPTOTE_CAP);
+
+      if (!asymptoteChartInstance) {
+        const ctx2 = document.getElementById('asymptoteChart').getContext('2d');
+        asymptoteChartInstance = new Chart(ctx2, {
+          type: 'line',
+          data: {
+            labels: streakSamplePoints.map(s => `${s}天`),
+            datasets: [
+              {
+                label: '單次打卡寶石',
+                data: curveData,
+                borderColor: '#0ea5e9',
+                backgroundColor: 'rgba(14, 165, 233, 0.12)',
+                fill: true,
+                tension: 0.35,
+                pointRadius: 3
+              },
+              {
+                label: '漸近線上限 (30 💎)',
+                data: capLine,
+                borderColor: '#f43f5e',
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { beginAtZero: true, max: 35, ticks: { stepSize: 10 } },
+              x: { grid: { display: false } }
+            },
+            plugins: { legend: { display: true, labels: { boxWidth: 12, font: { size: 10 } } } }
+          }
+        });
+      } else {
+        asymptoteChartInstance.data.datasets[0].data = curveData;
+        asymptoteChartInstance.update();
+      }
     };
 
-    // --- 7. 互動邏輯：僅允許今日打卡 + 多鄰國獎勵派發 ---
-    window.toggleTodayHabit = (id) => {
-      // 再次驗證系統時間是否仍在今日，防止跨日未重整網頁偷打勾
+    // --- 11. 互動事件 ---
+    window.toggleToday = (id, ev) => {
       const realNow = new Date();
-      const realTodayKey = formatKey(realNow.getFullYear(), realNow.getMonth(), realNow.getDate());
-      if (realTodayKey !== todayKey) {
-        alert('⏰ 已經超過晚上 12:00 跨日囉！系統將自動重新整理至新的一天。');
+      const realKey = formatKey(realNow.getFullYear(), realNow.getMonth(), realNow.getDate());
+      if (realKey !== todayKey) {
+        alert('⏰ 已經超過午夜 12:00 進入新的一天囉！昨日紀錄已封存，畫面將自動更新。');
         window.location.reload();
         return;
       }
@@ -499,93 +818,66 @@
       if (!habit) return;
 
       const wasChecked = !!habit.history[todayKey];
+      const streakBefore = calculateHabitStreak(habit);
+      const gemDelta = calculateGemReward(wasChecked ? Math.max(0, streakBefore - 1) : streakBefore);
+      const oldLevel = getLevel();
+
       habit.history[todayKey] = !wasChecked;
 
       if (!wasChecked) {
-        // 打勾獲得獎勵
-        gameStats.xp += 10;
-        gameStats.gems += 5;
+        appState.xp += 15;
+        appState.gems += gemDelta;
         playSound('ding');
 
-        // 檢查是否達成今日全滿
+        const newLevel = getLevel();
+        let levelUpText = '';
+        if (newLevel > oldLevel) {
+          appState.gems += 15; // 升級一次性禮包
+          levelUpText = ` 🎉升級+15💎`;
+        }
+
+        if (ev && ev.currentTarget) {
+          const toast = document.createElement('div');
+          toast.className = 'reward-toast absolute right-10 top-2 font-black text-xs bg-sky-500 text-white px-2.5 py-1 rounded-full shadow pointer-events-none';
+          toast.textContent = `+15 XP  +${gemDelta} 💎${levelUpText}`;
+          ev.currentTarget.appendChild(toast);
+          setTimeout(() => toast.remove(), 900);
+        }
+
+        // 檢查今日全勤寶箱（同樣套用微幅漸近上限 25 💎）
         const allDone = habits.every(h => h.history[todayKey]);
-        if (allDone && !gameStats.rewardedDays[todayKey]) {
-          gameStats.rewardedDays[todayKey] = true;
-          gameStats.xp += 30;
-          gameStats.gems += 15;
+        if (allDone && !appState.rewardedDays[todayKey]) {
+          appState.rewardedDays[todayKey] = true;
+          const bonusGems = Math.round(15 + 10 * ((newLevel - 1) / (newLevel + 7)));
+          appState.xp += 30;
+          appState.gems += bonusGems;
           setTimeout(() => {
             playSound('fanfare');
             confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
           }, 150);
         }
       } else {
-        // 取消打勾扣回剛加的點數
-        gameStats.xp = Math.max(0, gameStats.xp - 10);
-        gameStats.gems = Math.max(0, gameStats.gems - 5);
+        appState.xp = Math.max(0, appState.xp - 15);
+        appState.gems = Math.max(0, appState.gems - gemDelta);
       }
 
       saveAll();
-      renderDashboard();
+      renderAll();
     };
 
-    // 點擊已過午夜 12 點的上鎖格子時
-    window.tryLockedDay = (id, dateKey) => {
-      const habit = habits.find(h => h.id === id);
-      if (!habit || habit.history[dateKey]) {
-        alert('🔒 已經過了當天晚上 12:00，歷史紀錄已鎖定無法修改！');
-        return;
-      }
-
-      if (dateKey === yesterdayKey) {
-        if (gameStats.freezes > 0) {
-          const useFreeze = confirm(`🔒 昨天已經超過午夜 12:00 鎖定了！\n\n你要消耗 1 張「🧊 補簽冷凍卡」來拯救昨天的【${habit.name}】紀錄嗎？（目前持有 ${gameStats.freezes} 張）`);
-          if (useFreeze) {
-            gameStats.freezes -= 1;
-            habit.history[dateKey] = true;
-            playSound('ding');
-            saveAll();
-            renderDashboard();
-          }
-        } else {
-          alert('🔒 已經超過當天晚上 12:00，無法補打卡！\n（若想補救昨天的紀錄，可點擊上方用 50 💎 購買「補簽冷凍卡」）');
-        }
-      } else {
-        alert('🔒 已經超過當天晚上 12:00 太久了，無法再添加紀錄！請把握今天的打卡時間！');
-      }
-    };
-
-    // 購買連勝冷凍卡
-    document.getElementById('buy-freeze-btn').addEventListener('click', () => {
-      if (gameStats.gems < 50) {
-        alert(`💎 寶石不足！購買補簽冷凍卡需要 50 💎，你目前只有 ${gameStats.gems} 💎。\n快完成今天的習慣來賺取寶石吧！`);
-        return;
-      }
-      if (confirm('要花費 50 💎 購買 1 張「🧊 補簽冷凍卡」嗎？')) {
-        gameStats.gems -= 50;
-        gameStats.freezes += 1;
-        playSound('ding');
-        saveAll();
-        renderDashboard();
-      }
-    });
-
-    // 自動捲動表格到「今日」欄位
-    const scrollToToday = () => {
-      const todayTh = document.getElementById(`th-day-${todayDateNum}`);
-      const container = document.getElementById('matrix-scroll-container');
-      if (todayTh && container) {
-        container.scrollLeft = Math.max(0, todayTh.offsetLeft - 160);
-      }
-    };
-
-    document.getElementById('scroll-today-btn').addEventListener('click', scrollToToday);
-
-    window.deleteHabit = (id) => {
-      if (confirm('確定要刪除這個習慣目標嗎？')) {
+    window.deleteHabit = (id, ev) => {
+      ev.stopPropagation();
+      if (confirm('確定要刪除這項任務嗎？')) {
         habits = habits.filter(h => h.id !== id);
         saveAll();
-        renderDashboard();
+        renderAll();
       }
+    };
+
+    window.dismissBanner = () => {
+      appState.shieldBannerMsg = '';
+      saveAll();
+      renderAll();
     };
 
     document.getElementById('add-habit-form').addEventListener('submit', (e) => {
@@ -596,82 +888,149 @@
         habits.push({ id: Date.now(), name, history: {} });
         input.value = '';
         saveAll();
-        renderDashboard();
+        renderAll();
       }
     });
 
-    // --- 8. iPhone 通知方案 A：一鍵寫入 iOS 行事曆每日提醒 ---
-    document.getElementById('calendar-alarm-btn').addEventListener('click', () => {
-      const timeVal = document.getElementById('reminder-time').value || '21:30';
-      const [hh, mm] = timeVal.split(':');
-      const yyyy = currentYear;
-      const month = String(currentMonth + 1).padStart(2, '0');
-      const day = String(todayDateNum).padStart(2, '0');
-      const appUrl = window.location.href;
-
-      const icsContent = [
-        'BEGIN:VCALENDAR',
-        'VERSION:2.0',
-        'PRODID:-//Duo Habit Tracker//TW',
-        'BEGIN:VEVENT',
-        `DTSTART:${yyyy}${month}${day}T${hh}${mm}00`,
-        `DTEND:${yyyy}${month}${day}T${hh}${mm}00`,
-        'RRULE:FREQ=DAILY',
-        'SUMMARY:🦉 午夜12點前快來打卡保住連勝！',
-        `DESCRIPTION:超過晚上12點就會上鎖喔！點擊打開打卡： ${appUrl}`,
-        `URL:${appUrl}`,
-        'BEGIN:VALARM',
-        'TRIGGER:-PT0M',
-        'ACTION:DISPLAY',
-        'DESCRIPTION:🦉 今天還有習慣沒完成嗎？超過12點就鎖死囉！',
-        'END:VALARM',
-        'END:VEVENT',
-        'END:VCALENDAR'
-      ].join('\r\n');
-
-      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'iphone-habit-reminder.ics';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    });
-
-    // --- 9. iPhone 通知方案 B：透過 ntfy.sh 發送真正的 iPhone 鎖屏推播 ---
-    const topicInput = document.getElementById('ntfy-topic');
-    topicInput.value = localStorage.getItem('duo_ntfy_topic') || '';
-    topicInput.addEventListener('change', () => {
-      localStorage.setItem('duo_ntfy_topic', topicInput.value.trim());
-    });
-
-    document.getElementById('ntfy-test-btn').addEventListener('click', async () => {
-      const topic = topicInput.value.trim();
-      if (!topic) {
-        alert('請先在左側輸入一個自訂的英文頻道名稱（例如：alex-habit-123），並在 iPhone 下載免費的「ntfy」App 訂閱同一個名稱！');
+    window.buyShield = () => {
+      if (appState.shields >= 3) {
+        alert('🛡️ 你的連勝護盾已經達到上限（最多同時裝備 3 個）！');
         return;
       }
-      localStorage.setItem('duo_ntfy_topic', topic);
-      const unfinished = habits.filter(h => !h.history[todayKey]);
-      const msg = unfinished.length === 0
-        ? '🎉 太神啦！你今天已經 100% 完成所有習慣，連勝紀錄安全保住！'
-        : `⏳ 距離午夜 12:00 鎖定越來越近囉！你今天還有 ${unfinished.length} 個習慣尚未打卡：${unfinished.map(h => h.name).join('、')}`;
+      if (appState.gems < 40) {
+        alert('💎 寶石不足！購買連勝護盾需要 40 💎。');
+        return;
+      }
+      appState.gems -= 40;
+      appState.shields += 1;
+      playSound('buy');
+      saveAll();
+      renderAll();
+    };
 
-      try {
-        await fetch(`https://ntfy.sh/${encodeURIComponent(topic)}`, {
-          method: 'POST',
-          body: msg,
-          headers: { 'Title': '🦉 每日習慣連勝檢查' }
-        });
-        alert('✅ 推播已發送！請查看你的 iPhone 是否有跳出 ntfy 通知！');
-      } catch (err) {
-        alert('發送失敗，請確認網路連線。');
+    window.buyVoucher = (vId) => {
+      const item = appState.customVouchers.find(v => String(v.id) === String(vId));
+      if (!item) return;
+      if (appState.gems < item.cost) {
+        alert(`💎 寶石不足！需要 ${item.cost} 💎 才能兌換【${item.name}】。`);
+        return;
+      }
+      appState.gems -= item.cost;
+      appState.voucherBag.push({ ...item, boughtAt: Date.now() });
+      playSound('buy');
+      saveAll();
+      renderAll();
+    };
+
+    window.useVoucherFromBag = (idx) => {
+      const item = appState.voucherBag[idx];
+      if (!item) return;
+      if (confirm(`確定要現在撕票使用【${item.name}】嗎？`)) {
+        appState.voucherBag.splice(idx, 1);
+        if (item.isLazyPass) {
+          appState.protectedDays[todayKey] = 'lazy';
+          alert('🛋️ 已啟動「今日合法偷懶券」！今天即使不打卡，明天連勝也絕對不會斷！');
+        } else {
+          alert(`🎉 兌換成功！現在就去享受你的小確幸：【${item.name}】吧！`);
+        }
+        playSound('fanfare');
+        saveAll();
+        renderAll();
+      }
+    };
+
+    document.getElementById('add-voucher-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const nameEl = document.getElementById('voucher-name');
+      const costEl = document.getElementById('voucher-cost');
+      const name = nameEl.value.trim();
+      const cost = parseInt(costEl.value, 10);
+      if (name && cost > 0) {
+        appState.customVouchers.push({ id: Date.now(), icon: '🎁', name, cost, isLazyPass: false });
+        nameEl.value = '';
+        costEl.value = '';
+        saveAll();
+        renderAll();
       }
     });
 
-    initChart();
-    renderDashboard();
-    setTimeout(scrollToToday, 200);
+    window.handleAvatar = (id) => {
+      const item = AVATAR_CATALOG.find(a => a.id === id);
+      if (!item) return;
+      if (appState.unlockedAvatars.includes(id)) {
+        appState.currentAvatar = id;
+        playSound('ding');
+      } else {
+        if (appState.gems < item.cost) {
+          alert(`💎 寶石不足！解鎖【${item.name}】需要 ${item.cost} 💎。`);
+          return;
+        }
+        appState.gems -= item.cost;
+        appState.unlockedAvatars.push(id);
+        appState.currentAvatar = id;
+        playSound('buy');
+      }
+      saveAll();
+      renderAll();
+    };
+
+    window.handleTheme = (id) => {
+      const item = THEME_CATALOG.find(t => t.id === id);
+      if (!item) return;
+      if (appState.unlockedThemes.includes(id)) {
+        appState.currentTheme = id;
+        playSound('ding');
+      } else {
+        if (appState.gems < item.cost) {
+          alert(`💎 寶石不足！解鎖【${item.name}】需要 ${item.cost} 💎。`);
+          return;
+        }
+        appState.gems -= item.cost;
+        appState.unlockedThemes.push(id);
+        appState.currentTheme = id;
+        playSound('buy');
+      }
+      saveAll();
+      renderAll();
+    };
+
+    window.switchTab = (tabName) => {
+      ['today', 'shop', 'stats'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tabName);
+        const navBtn = document.getElementById(`nav-${t}`);
+        if (t === tabName) {
+          navBtn.className = 'flex flex-col items-center py-1 rounded-xl font-extrabold text-xs theme-text theme-soft-bg';
+        } else {
+          navBtn.className = 'flex flex-col items-center py-1 rounded-xl font-bold text-xs text-slate-400 hover:text-slate-600';
+        }
+      });
+      if (tabName === 'stats') renderStats();
+    };
+
+    document.getElementById('calendar-alarm-btn').addEventListener('click', () => {
+      const [hh, mm] = (document.getElementById('reminder-time').value || '21:30').split(':');
+      const month = String(currentMonth + 1).padStart(2, '0');
+      const day = String(todayNum).padStart(2, '0');
+      const url = window.location.href;
+      const ics = [
+        'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Clean Habit//TW', 'BEGIN:VEVENT',
+        `DTSTART:${currentYear}${month}${day}T${hh}${mm}00`,
+        `DTEND:${currentYear}${month}${day}T${hh}${mm}00`,
+        'RRULE:FREQ=DAILY',
+        'SUMMARY:🦉 午夜12點前快來完成今日任務！',
+        `DESCRIPTION:點擊打開習慣修煉： ${url}`,
+        `URL:${url}`,
+        'BEGIN:VALARM', 'TRIGGER:-PT0M', 'ACTION:DISPLAY',
+        'DESCRIPTION:🦉 今天任務打卡了嗎？', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'
+      ].join('\r\n');
+      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'habit-reminder.ics';
+      a.click();
+    });
+
+    renderAll();
   </script>
 </body>
 </html>
