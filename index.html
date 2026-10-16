@@ -18,8 +18,8 @@
 
   <!-- 引入 Tailwind CSS、Chart.js 與彩帶套件 -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+
   
   <style>
     :root {
@@ -80,12 +80,6 @@
         <div>
           <div class="flex items-center gap-1.5">
             <span class="font-extrabold text-sm text-slate-800" id="level-badge">Lv.1</span>
-            <span 
-              class="text-[11px] font-bold px-2 py-0.5 rounded-full theme-soft-bg theme-text cursor-pointer" 
-              id="multiplier-badge"
-              onclick="showAsymptoteInfo()"
-              title="點擊查看漸近線成長公式說明"
-            >💎 +5 (上限30)</span>
           </div>
           <!-- 迷你經驗條 -->
           <div class="w-28 bg-slate-100 h-2 rounded-full overflow-hidden mt-1 border border-slate-200">
@@ -118,7 +112,7 @@
       <div class="flex items-end justify-between px-1">
         <div>
           <p class="text-xs font-bold text-slate-400 uppercase tracking-wider" id="today-date-label">TODAY</p>
-          <h1 class="text-2xl font-black text-slate-800 mt-0.5">今日任務清單</h1>
+          <h1 class="text-2xl font-black text-slate-800 mt-0.5"><img src="https://img.icons8.com/fluency/48/todo-list.png" width="28" height="28" class="inline-block shrink-0" alt="" loading="lazy" onerror="this.style.visibility='hidden'"> 今日任務清單</h1>
         </div>
         <div class="text-right">
           <span class="text-xs font-extrabold text-slate-400">完成進度</span>
@@ -130,17 +124,17 @@
       <div id="status-banner" class="hidden p-3.5 rounded-2xl border-2 text-xs font-bold flex items-center gap-2.5"></div>
 
       <!-- 今日任務大卡片列表 -->
-      <div id="today-habit-list" class="space-y-3"></div>
+      <div id="today-habit-list" class="space-y-3"></div><details class="text-sm"><summary class="cursor-pointer text-slate-500">管理所有任務與頻率</summary><div id="all-habits" class="mt-2 space-y-2"></div></details>
 
       <!-- 收合式新增任務區 -->
       <div class="pt-2">
-        <form id="add-habit-form" class="flex gap-2">
+        <form id="add-habit-form" class="space-y-3 bg-white border-2 border-slate-200 rounded-2xl p-3"><div class="flex gap-2">
           <input 
             type="text" 
             id="habit-input" 
-            placeholder="＋ 新增一項每日任務..." 
+            placeholder="任務名稱" maxlength="80" 
             required
-            class="px-4 py-3 rounded-2xl border-2 border-slate-200 bg-white focus:outline-none focus:border-slate-400 text-sm flex-1 select-text font-bold"
+            class="min-w-0 px-4 py-3 rounded-2xl border-2 border-slate-200 bg-white focus:outline-none focus:border-slate-400 text-sm flex-1 select-text font-bold"
           />
           <button 
             type="submit" 
@@ -148,9 +142,14 @@
           >
             新增
           </button>
+          </div>
+          <label class="block text-xs font-bold">任務頻率<select id="habit-frequency" class="block w-full border-2 rounded-xl p-2 mt-1" onchange="updateFrequencyFields()"><option value="daily">每天</option><option value="weekdays">每週指定日</option><option value="interval">每隔幾天</option></select></label>
+          <fieldset id="weekday-options" class="hidden"><legend class="text-xs mb-2">選擇星期（可複選）</legend><div class="flex justify-between"><label class="text-xs"><input name="habit-day" type="checkbox" value="0" class="block mx-auto mb-1">日</label><label class="text-xs"><input name="habit-day" type="checkbox" value="1" class="block mx-auto mb-1">一</label><label class="text-xs"><input name="habit-day" type="checkbox" value="2" class="block mx-auto mb-1">二</label><label class="text-xs"><input name="habit-day" type="checkbox" value="3" class="block mx-auto mb-1">三</label><label class="text-xs"><input name="habit-day" type="checkbox" value="4" class="block mx-auto mb-1">四</label><label class="text-xs"><input name="habit-day" type="checkbox" value="5" class="block mx-auto mb-1">五</label><label class="text-xs"><input name="habit-day" type="checkbox" value="6" class="block mx-auto mb-1">六</label></div></fieldset>
+          <label id="interval-options" class="hidden text-xs">每 <input id="habit-interval" type="number" min="1" max="365" value="2" class="border-2 rounded-lg p-2 w-20"> 天一次（從建立日起計算）</label>
+          <p id="editing-label" class="text-xs theme-text"></p><button id="cancel-edit" type="button" class="hidden text-xs underline" onclick="cancelEdit()">取消編輯</button>
         </form>
         <p class="text-[11px] text-center text-slate-400 mt-2 font-medium">
-          一般打卡僅限當日；贖罪券可補回昨天一項任務。每項習慣連續完成 7 天獎勵 100 💎。
+          一般打卡僅限當日。贖罪券在漏打卡後自動保住連勝，最多 3 張；休息日不斷連勝。連續完成 7 次排定任務獎勵 100 💎。
         </p>
       </div>
     </section>
@@ -162,32 +161,19 @@
       <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 space-y-3">
         <div class="flex items-center justify-between">
           <div>
-            <h2 class="text-lg font-black text-slate-800">💎 寶石補給與小確幸商店</h2>
-            <p class="text-xs text-slate-400 font-medium mt-0.5">採用「邊際遞減漸近線模型」，物價穩定不通膨！</p>
+            <h2 class="text-lg font-black text-slate-800"><img src="https://img.icons8.com/fluency/48/shop.png" width="28" height="28" class="inline-block shrink-0" alt="" loading="lazy" onerror="this.style.visibility='hidden'"> 小確幸商店</h2>
+            <p class="text-xs text-slate-400 font-medium mt-0.5">用努力累積的寶石，兌換生活中的小獎勵。</p>
           </div>
           <div class="bg-sky-50 border-2 border-sky-200 px-3 py-1.5 rounded-xl font-black text-sky-500 text-sm">
             💎 <span id="shop-gems">0</span>
           </div>
-        </div>
-        <!-- 漸近線收斂進度條 -->
-        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1.5">
-          <div class="flex justify-between font-extrabold text-slate-700">
-            <span id="asymptote-detail-text"> 當前單次打卡產量：+5 💎</span>
-            <span class="text-sky-600">理論漸近線極限：30 💎</span>
-          </div>
-          <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-            <div id="asymptote-bar" class="bg-sky-500 h-full transition-all duration-500" style="width: 16%"></div>
-          </div>
-          <p class="text-[11px] text-slate-400 font-medium">
-            公式：$5 + 10\cdot\frac{L-1}{L+7} + 15\cdot\frac{S}{S+14}$（前期快速成長，後期平緩收斂至 30 💎）
-          </p>
         </div>
       </div>
 
       <!-- 2. 小確幸券（偷懶一天或犒賞自己） -->
       <div class="space-y-2.5">
         <div class="flex items-center justify-between px-1">
-          <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider"> 現實小確幸與贖罪券</h3>
+          <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider"><img src="https://img.icons8.com/fluency/48/ticket.png" width="28" height="28" class="inline-block shrink-0" alt="" loading="lazy" onerror="this.style.visibility='hidden'"> 現實小確幸與贖罪券</h3>
           <span class="text-[11px] text-slate-400 font-bold">可自訂專屬獎勵</span>
         </div>
         
@@ -195,7 +181,7 @@
 
         <!-- 自訂新增小確幸商品 -->
         <form id="add-voucher-form" class="bg-slate-100 p-3 rounded-2xl border-2 border-dashed border-slate-300 flex gap-2">
-          <input type="text" id="voucher-name" placeholder="自訂獎勵（如：吃宵夜、買新書）" required class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold flex-1 select-text" />
+          <input type="text" id="voucher-name" placeholder="自訂獎勵（如：吃宵夜、買新書）" required class="min-w-0 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold flex-1 select-text" />
           <input type="number" id="voucher-cost" placeholder="💎價格" min="10" max="9999" required class="px-2.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold w-20 select-text" />
           <button type="submit" class="bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap">＋新增</button>
         </form>
@@ -203,14 +189,14 @@
         <!-- 我的背包 -->
         <div class="bg-amber-50/70 border-2 border-amber-200 p-3.5 rounded-2xl space-y-2">
           <h4 class="text-xs font-extrabold text-amber-800 flex items-center gap-1.5">
-            <span> 我的小確幸背包（點擊即可撕票兌換）</span>
+            <span><img src="https://img.icons8.com/fluency/48/backpack.png" width="28" height="28" class="inline-block shrink-0" alt="" loading="lazy" onerror="this.style.visibility='hidden'"> 獎勵背包（贖罪券自動使用）</span>
           </h4>
           <div id="inventory-vouchers" class="flex flex-wrap gap-2 text-xs"></div>
         </div>
       </div>
 
       <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 space-y-3">
-        <h3 class="font-extrabold">自訂個人外觀</h3>
+        <h3 class="font-extrabold"><img src="https://img.icons8.com/fluency/48/paint-palette.png" width="28" height="28" class="inline-block shrink-0" alt="" loading="lazy" onerror="this.style.visibility='hidden'"> 自訂個人外觀</h3>
         <label class="block text-sm font-bold">頭像文字（最多 2 字）<input id="avatar-text" maxlength="2" class="block border-2 rounded-xl p-2 mt-2 w-full" placeholder="例如：修煉"></label>
         <label class="block text-sm font-bold">上傳頭像圖片<input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp" class="block mt-2 text-xs w-full"></label>
         <button id="save-avatar" class="duo-btn text-white px-4 py-2 rounded-xl">套用文字頭像</button>
@@ -226,36 +212,27 @@
       <!-- 當月數據總覽 -->
       <div class="grid grid-cols-2 gap-3">
         <div class="bg-white p-4 rounded-2xl border-2 border-slate-200">
-          <p class="text-xs font-bold text-slate-400">本月累計打卡</p>
+          <p class="text-xs font-bold text-slate-400">所選月份累計打卡</p>
           <p class="text-2xl font-black text-slate-800 mt-1" id="stat-month-total">0 次</p>
         </div>
         <div class="bg-white p-4 rounded-2xl border-2 border-slate-200">
-          <p class="text-xs font-bold text-slate-400">本月有打卡</p>
+          <p class="text-xs font-bold text-slate-400">所選月份有打卡</p>
           <p class="text-2xl font-black mt-1" id="stat-active-days">0 天</p>
         </div>
       </div>
       <div class="bg-white p-4 rounded-2xl border-2 border-slate-200">
-        <h2 class="font-extrabold" id="calendar-title"></h2>
-        <p class="text-xs text-slate-400 mt-1 mb-4">顏色越深，當天完成的任務越多；點日期查看詳情。</p>
+        <div class="flex items-center justify-between gap-2"><button onclick="changeMonth(-1)" aria-label="上一個月" class="rounded-xl border-2 px-3 py-2">‹</button><h2 class="font-extrabold" id="calendar-title"></h2><button id="next-month" onclick="changeMonth(1)" aria-label="下一個月" class="rounded-xl border-2 px-3 py-2 disabled:opacity-30">›</button></div><button onclick="resetMonth()" class="text-xs theme-text font-bold mt-2">回到本月</button>
+        <p class="text-xs text-slate-400 mt-1 mb-4">顏色越深，當天完成比例越高；點日期查看完成與未完成任務。舊版未記錄建立日期的任務，從最早既有紀錄起顯示。</p>
         <div class="grid grid-cols-7 gap-1 text-center text-xs text-slate-400 mb-2"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
         <div id="month-calendar" class="grid grid-cols-7 gap-1"></div>
         <div id="calendar-legend" class="flex items-center justify-end gap-1 text-xs mt-4"></div>
-        <p id="calendar-detail" class="text-sm mt-4 text-slate-600" aria-live="polite">選擇日期查看完成任務。</p>
-      </div>
-
-      <!-- 漸近線成長曲線預覽圖 -->
-      <div class="bg-white p-4 rounded-2xl border-2 border-slate-200">
-        <h2 class="text-base font-extrabold text-slate-800"> 寶石漸近線成長曲線（飽和模型）</h2>
-        <p class="text-xs text-slate-400 mb-3">隨連勝天數增加的單次寶石獎勵（水平漸近線上限 = 30 💎）</p>
-        <div class="relative h-44 w-full">
-          <canvas id="asymptoteChart"></canvas>
-        </div>
+        <div id="calendar-detail" class="text-sm mt-4 text-slate-600" aria-live="polite">選擇日期查看當天任務。</div>
       </div>
 
       <!-- iPhone 通知設定 -->
       <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 space-y-3">
         <div class="flex items-center gap-2">
-          <span class="text-xl"></span>
+          <img src="https://img.icons8.com/fluency/48/appointment-reminders.png" width="28" height="28" class="inline-block shrink-0" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
           <div>
             <h3 class="text-sm font-extrabold text-slate-800">iPhone 鎖定畫面提醒</h3>
             <p class="text-xs text-slate-400">在午夜 12:00 關門前提醒自己打卡保住連勝</p>
@@ -271,22 +248,22 @@
 
     </section>
 
-  </main>
+  </main><footer class="text-center text-xs text-slate-400 p-3">圖示由 <a href="https://icons8.com" target="_blank" rel="noopener noreferrer" class="underline">Icons8</a> 提供</footer>
 
   <!-- 底部極簡導覽列 -->
   <nav class="fixed bottom-0 left-0 right-0 z-30 bg-white border-t-2 border-slate-200 px-4 py-2">
     <div class="max-w-md mx-auto grid grid-cols-3 gap-2">
       <button onclick="switchTab('today')" id="nav-today" class="flex flex-col items-center py-1 rounded-xl font-extrabold text-xs theme-text theme-soft-bg">
-        <span class="text-lg"></span>
+        <img src="https://img.icons8.com/fluency/48/todo-list.png" width="28" height="28" class="inline-block shrink-0" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
         <span class="mt-0.5">今日任務</span>
       </button>
       <button onclick="switchTab('shop')" id="nav-shop" class="flex flex-col items-center py-1 rounded-xl font-bold text-xs text-slate-400 hover:text-slate-600">
-        <span class="text-lg"></span>
+        <img src="https://img.icons8.com/fluency/48/shop.png" width="28" height="28" class="inline-block shrink-0" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
         <span class="mt-0.5">寶石商店</span>
       </button>
       <button onclick="switchTab('stats')" id="nav-stats" class="flex flex-col items-center py-1 rounded-xl font-bold text-xs text-slate-400 hover:text-slate-600">
-        <span class="text-lg"></span>
-        <span class="mt-0.5">當月紀錄</span>
+        <img src="https://img.icons8.com/fluency/48/calendar.png" width="28" height="28" class="inline-block shrink-0" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+        <span class="mt-0.5">打卡紀錄</span>
       </button>
     </div>
   </nav>
@@ -349,11 +326,12 @@
       }
       return arr;
     };
-    const monthDays = getMonthDays();
+    let viewedMonth = new Date(currentYear,currentMonth,1);
+    let selectedDay = todayKey;
 
     // --- 3. 商店目錄 ---
     const DEFAULT_VOUCHERS = [
-      { id: 'redemption', name: '贖罪券（補回昨天一項任務）', cost: 100, isRedemption: true },
+      { id: 'redemption', name: '贖罪券（自動保護連勝）', cost: 100, isRedemption: true },
       { id: 'boba', icon: '', name: '犒賞自己喝一杯手搖飲', cost: 60, isLazyPass: false },
       { id: 'game', icon: '', name: '無罪惡感打電動 / 追劇 1 小時', cost: 80, isLazyPass: false }
     ];
@@ -395,7 +373,7 @@
     appState.voucherBag.forEach(v=>v.name=cleanLabel(v.name));
     appState.customColor ||= '#58cc02';
     const migrateVoucher = v => v.isLazyPass || v.id === 'redemption'
-      ? { ...v, id: 'redemption', name: '贖罪券（補回昨天一項任務）', cost: 100, isLazyPass: false, isRedemption: true } : v;
+      ? { ...v, id: 'redemption', name: '贖罪券（自動保護連勝）', cost: 100, isLazyPass: false, isRedemption: true } : v;
     appState.customVouchers = appState.customVouchers.map(migrateVoucher);
     if (!appState.customVouchers.some(v => v.isRedemption)) appState.customVouchers.unshift(migrateVoucher({isLazyPass:true}));
     appState.voucherBag = appState.voucherBag.map(migrateVoucher);
@@ -404,22 +382,55 @@
     delete appState.rewardedDays;
     const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const yesterdayKey = () => { const d = new Date(currentYear,currentMonth,todayNum-1); return formatKey(d.getFullYear(),d.getMonth(),d.getDate()); };
-    const awardWeekly = habit => {
-      // A milestone can be claimed once per habit and date, including after undo/redo.
-      let count = 0;
-      for (let i=0; i<3650; i++) {
-        const d = new Date(currentYear,currentMonth,todayNum-i);
-        const key = formatKey(d.getFullYear(),d.getMonth(),d.getDate());
-        if (i===0 && !habit.history[key]) continue;
-        if (!habit.history[key]) break;
-        count++;
+    const dateKey = date => formatKey(date.getFullYear(),date.getMonth(),date.getDate());
+    const parseDay = key => { const [y,m,d]=key.split('-').map(Number); return new Date(y,m-1,d); };
+    habits.forEach(h => {
+      h.history ||= {};
+      h.createdOn ||= Object.keys(h.history).sort()[0] || todayKey;
+      h.schedules ||= [{from:h.createdOn, type:'daily', days:[], interval:1}];
+    });
+    const scheduleAt = (h,key) => [...h.schedules].reverse().find(s=>s.from<=key);
+    const isScheduled = (h,key) => {
+      if (key<h.createdOn || (h.archivedOn && key>=h.archivedOn)) return false;
+      const rule=scheduleAt(h,key); if (!rule) return false;
+      if (rule.type==='weekdays') return rule.days.includes(parseDay(key).getDay());
+      if (rule.type==='interval') { const a=parseDay(rule.from), b=parseDay(key); return Math.round((Date.UTC(b.getFullYear(),b.getMonth(),b.getDate())-Date.UTC(a.getFullYear(),a.getMonth(),a.getDate()))/86400000)%rule.interval===0; }
+      return true;
+    };
+    const frequencyLabel = h => { const r=scheduleAt(h,todayKey); return r.type==='daily'?'每天':r.type==='interval'?`每 ${r.interval} 天一次`:'每週 '+r.days.map(d=>'日一二三四五六'[d]).join('、'); };
+    const redemptionCount = () => appState.voucherBag.filter(v=>v.isRedemption).length;
+    if (!appState.protectionV2) {
+      const extra=Math.max(0,redemptionCount()-3); let kept=0;
+      appState.voucherBag=appState.voucherBag.filter(v=>!v.isRedemption || ++kept<=3);
+      appState.gems+=extra*100;
+      appState.voucherBag.forEach(v=>{ if(v.isRedemption) v.availableFrom=yesterdayKey(); });
+      // Start checking yesterday once on migration; older history is left unchanged.
+      const previous=parseDay(yesterdayKey());previous.setDate(previous.getDate()-1);
+      appState.protectionCheckedThrough=dateKey(previous);
+      appState.protectionV2=true;
+    }
+    const checkProtection = () => {
+      const day=parseDay(appState.protectionCheckedThrough);day.setDate(day.getDate()+1);
+      let used=0;
+      while(dateKey(day)<todayKey) {
+        const key=dateKey(day);
+        const missed=habits.some(h=>isScheduled(h,key)&&!h.history[key]);
+        if(missed&&!appState.protectedDays[key]) {
+          const index=appState.voucherBag.findIndex(v=>v.isRedemption&&(v.availableFrom||todayKey)<=key);
+          if(index>=0) { appState.voucherBag.splice(index,1); appState.protectedDays[key]='redemption';used++; }
+        }
+        appState.protectionCheckedThrough=key;day.setDate(day.getDate()+1);
       }
+      if(used) appState.protectionNotice=`已自動使用 ${used} 張贖罪券保護連勝；漏打卡紀錄仍為未完成。`;
+    };
+    const awardWeekly = habit => {
+      const count = calculateHabitStreak(habit);
       const end = habit.history[todayKey] ? todayKey : yesterdayKey();
       const rewardKey = `${habit.id}:${end}`;
       if (count > 0 && count % 7 === 0 && !appState.weeklyRewards[rewardKey]) {
         appState.weeklyRewards[rewardKey] = true;
         appState.gems += 100;
-        alert(`連續完成 ${count} 天：${escapeHtml(habit.name)}，獲得 100 💎！`);
+        alert(`連續完成 ${count} 次：${escapeHtml(habit.name)}，獲得 100 💎！`);
       }
     };
     const saveAll = () => {
@@ -430,24 +441,19 @@
     // --- 5. 計算連勝與護盾保護邏輯 ---
     const calculateHabitStreak = (habit) => {
       let streak = 0;
-      for (let i = 0; i < 365; i++) {
-        const d = new Date(currentYear, currentMonth, todayNum - i);
-        const key = formatKey(d.getFullYear(), d.getMonth(), d.getDate());
-        if (habit.history[key]) {
-          streak++;
-        } else if (appState.protectedDays[key]) {
-          continue;
-        } else {
-          if (i === 0) continue;
-          break;
-        }
+      for (let i = 0; i < 36500; i++) {
+        const d = new Date(currentYear,currentMonth,todayNum-i), key=dateKey(d);
+        if(key<habit.createdOn) break;
+        if(!isScheduled(habit,key)) continue;
+        if(habit.history[key]) streak++;
+        else if(appState.protectedDays[key] || i===0) continue;
+        else break;
       }
       return streak;
     };
 
     // --- 6. 漸近線飽和寶石公式 (Michaelis-Menten Asymptotic Model) ---
     // 上限 ASYMPTOTE_CAP = 5 (基礎) + 10 (等級漸近線) + 15 (連勝漸近線) = 30 💎
-    const ASYMPTOTE_CAP = 30;
     const getLevel = () => Math.floor(appState.xp / 100) + 1;
 
     const getMaxStreak = () => {
@@ -469,20 +475,6 @@
       return base + Math.round(levelBonus + streakBonus);
     };
 
-    window.showAsymptoteInfo = () => {
-      const lvl = getLevel();
-      const maxS = getMaxStreak();
-      const cur = calculateGemReward(maxS);
-      alert(
-        ` 漸近線寶石成長模型 (上限 ${ASYMPTOTE_CAP} 💎)\n\n` +
-        `• 基礎保底：5 💎\n` +
-        `• 等級加成 (Lv.${lvl})：+${(10 * ((lvl - 1) / (lvl + 7))).toFixed(1)} 💎 (上限 +10)\n` +
-        `• 連勝加成 (${maxS}天)：+${(15 * (maxS / (maxS + 14))).toFixed(1)} 💎 (上限 +15)\n\n` +
-        ` 目前單次打卡可得：${cur} 💎\n` +
-        `（前期成長快，後期斜率趨緩，永遠不會超過 30 💎，防止商店通貨膨脹！）`
-      );
-    };
-
     // --- 7. 套用主題外觀與角色 ---
     const applyThemeAndAvatar = () => {
       const color = /^#[0-9a-f]{6}$/i.test(appState.customColor) ? appState.customColor : '#58cc02';
@@ -500,8 +492,6 @@
     };
 
     // --- 8. 渲染主畫面 ---
-    let chartInstance = null;
-    let asymptoteChartInstance = null;
 
     const renderAll = () => {
       applyThemeAndAvatar();
@@ -509,12 +499,9 @@
       const lvl = getLevel();
       const xpInLevel = appState.xp % 100;
       const maxStreak = getMaxStreak();
-      const sampleReward = calculateGemReward(maxStreak);
-      const asymptotePercent = Math.round((sampleReward / ASYMPTOTE_CAP) * 100);
 
       // 頂部狀態列更新
       document.getElementById('level-badge').textContent = `Lv.${lvl}`;
-      document.getElementById('multiplier-badge').textContent = `💎 +${sampleReward} (漸近上限${ASYMPTOTE_CAP})`;
       document.getElementById('xp-bar').style.width = `${xpInLevel}%`;
       document.getElementById('top-streak').textContent = maxStreak;
 
@@ -522,22 +509,21 @@
       document.getElementById('shop-gems').textContent = appState.gems;
 
       // 商店漸近線進度條
-      document.getElementById('asymptote-detail-text').textContent = ` 當前最高單次產量：+${sampleReward} 💎 (${asymptotePercent}%)`;
-      document.getElementById('asymptote-bar').style.width = `${asymptotePercent}%`;
 
       // 日期與完成度
       const weekNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
       document.getElementById('today-date-label').textContent = `${currentMonth + 1}月${todayNum}日 · ${weekNames[now.getDay()]}`;
       
-      const doneTodayCount = habits.filter(h => h.history[todayKey]).length;
-      document.getElementById('today-fraction').textContent = `${doneTodayCount} / ${habits.length}`;
+      const todayHabits=habits.filter(h=>isScheduled(h,todayKey));
+      const doneTodayCount = todayHabits.filter(h => h.history[todayKey]).length;
+      document.getElementById('today-fraction').textContent = `${doneTodayCount} / ${todayHabits.length}`;
 
       // 渲染極簡今日任務大卡片
       const listEl = document.getElementById('today-habit-list');
-      if (habits.length === 0) {
-        listEl.innerHTML = `<div class="bg-white p-8 rounded-2xl border-2 border-slate-200 text-center text-slate-400 font-bold text-sm">目前還沒有任務，在下方新增一個吧！</div>`;
+      if (todayHabits.length === 0) {
+        listEl.innerHTML = `<div class="bg-white p-8 rounded-2xl border-2 border-slate-200 text-center text-slate-400 font-bold text-sm">今天沒有排定任務，好好休息或新增一項任務。</div>`;
       } else {
-        listEl.innerHTML = habits.map(habit => {
+        listEl.innerHTML = todayHabits.map(habit => {
           const checked = !!habit.history[todayKey];
           const streak = calculateHabitStreak(habit);
           const expectedGem = calculateGemReward(checked ? Math.max(0, streak - 1) : streak);
@@ -554,9 +540,9 @@
                   ✓
                 </div>
                 <div class="truncate">
-                  <p class="font-extrabold text-base ${checked ? 'line-through text-slate-500' : 'text-slate-800'} truncate">${escapeHtml(habit.name)}</p>
+                  <p class="font-extrabold text-base ${checked ? 'line-through text-slate-500' : 'text-slate-800'} truncate">${escapeHtml(habit.name)}</p><p class="text-xs text-slate-400">${frequencyLabel(habit)}</p>
                   <div class="flex items-center gap-2 mt-0.5 text-xs font-bold">
-                    <span class="${streak > 0 ? 'text-amber-500' : 'text-slate-400'}">🔥 連勝 ${streak} 天</span>
+                    <span class="${streak > 0 ? 'text-amber-500' : 'text-slate-400'}">🔥 連勝 ${streak} 次</span>
                     <span class="text-sky-500">· 完成 +${expectedGem} 💎</span>
                   </div>
                 </div>
@@ -572,6 +558,10 @@
         }).join('');
       }
 
+      document.getElementById('all-habits').innerHTML=habits.filter(h=>!h.archivedOn).map(h=>`<div class="flex items-center justify-between gap-2 p-2 bg-white rounded-lg"><span>${escapeHtml(h.name)}<small class="block text-slate-400">${frequencyLabel(h)}</small></span><button class="text-xs underline" onclick="editHabit(${h.id})">編輯頻率</button></div>`).join('');
+      const banner=document.getElementById('status-banner');
+      banner.textContent=appState.protectionNotice || `贖罪券 ${redemptionCount()} / 3 張；有漏打卡時自動保護連勝。`;
+      banner.classList.remove('hidden');
       renderShop();
       renderStats();
     };
@@ -583,10 +573,10 @@
       document.getElementById('vouchers-list').innerHTML = appState.customVouchers.map(v => `
         <div class="bg-white p-3.5 rounded-2xl border-2 border-slate-200 flex items-center justify-between gap-2">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-xl">券</div>
+            <div class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-xl"><img src="https://img.icons8.com/fluency/48/ticket.png" width="28" height="28" class="inline-block shrink-0" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></div>
             <div>
               <h4 class="font-extrabold text-sm text-slate-800">${escapeHtml(v.name)}</h4>
-              <p class="text-[11px] text-slate-400 font-bold">${v.isRedemption ? '補回昨天一項漏打卡任務，恢復連續紀錄' : '存入背包，隨時可兌換犒賞自己'}</p>
+              <p class="text-[11px] text-slate-400 font-bold">${v.isRedemption ? `持有 ${redemptionCount()} / 3；漏打卡時每日自動消耗 1 張，不補寫紀錄` : '存入背包，隨時可兌換犒賞自己'}</p>
             </div>
           </div>
           <button onclick="buyVoucher('${v.id}')" class="duo-btn text-white px-3 py-2 rounded-xl text-xs font-black whitespace-nowrap">
@@ -601,12 +591,12 @@
       } else {
         bagEl.innerHTML = appState.voucherBag.map((item, idx) => `
           <button 
-            onclick="useVoucherFromBag(${idx})"
+            onclick="useVoucherFromBag(${idx})" ${item.isRedemption?'disabled':''}
             class="bg-white border-2 border-amber-300 hover:bg-amber-100 text-amber-900 px-3 py-1.5 rounded-xl font-extrabold flex items-center gap-1.5 shadow-sm"
           >
-            <span>券</span>
+            <img src="https://img.icons8.com/fluency/48/gift.png" width="28" height="28" class="inline-block shrink-0" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
             <span>${escapeHtml(item.name)}</span>
-            <span class="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded-md">點我兌換</span>
+            <span class="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded-md">${item.isRedemption?'自動使用':'點我兌換'}</span>
           </button>
         `).join('');
       }
@@ -615,64 +605,33 @@
 
     // --- 10. 渲染當月統計圖表 + 漸近線預覽圖 ---
     const renderStats = () => {
-      const counts = monthDays.map(d => habits.filter(h => h.history[d.key]).length);
-      const maxCount = Math.max(1,...counts);
-      document.getElementById('stat-month-total').textContent = `${counts.reduce((a,b)=>a+b,0)} 次`;
-      document.getElementById('stat-active-days').textContent = `${counts.filter(n=>n>0).length} 天`;
-      document.getElementById('calendar-title').textContent = `${currentYear} 年 ${currentMonth+1} 月`;
-      const shade = n => n ? `color-mix(in srgb, ${appState.customColor} ${Math.round(20+70*n/maxCount)}%, white)` : '#f1f5f9';
-      document.getElementById('month-calendar').innerHTML = '<span></span>'.repeat(new Date(currentYear,currentMonth,1).getDay()) + monthDays.map((d,i)=>{
-        const future = d.dayNum > todayNum;
-        return `<button onclick="showDay('${d.key}')" ${future?'disabled':''} aria-label="${d.key}：${counts[i]} 項任務" class="rounded-lg py-2 text-xs border-2 ${d.isToday?'border-slate-700':'border-transparent'} ${future?'opacity-30':''}" style="background:${shade(counts[i])};color:#0f172a"><b>${d.dayNum}</b><span class="block text-[10px]">${future?'—':counts[i]+' 項'}</span></button>`;
+      const y=viewedMonth.getFullYear(),m=viewedMonth.getMonth();
+      const days=Array.from({length:new Date(y,m+1,0).getDate()},(_,i)=>({day:i+1,key:formatKey(y,m,i+1)}));
+      const data=days.map(d=>{const planned=habits.filter(h=>isScheduled(h,d.key)||h.history[d.key]);return {...d,planned,done:planned.filter(h=>h.history[d.key])};});
+      document.getElementById('stat-month-total').textContent=`${data.reduce((n,d)=>n+d.done.length,0)} 次`;
+      document.getElementById('stat-active-days').textContent=`${data.filter(d=>d.done.length).length} 天`;
+      document.getElementById('calendar-title').textContent=`${y} 年 ${m+1} 月`;
+      document.getElementById('next-month').disabled=y===currentYear&&m===currentMonth;
+      const shade=ratio=>ratio?`color-mix(in srgb, ${appState.customColor} ${20+70*ratio}%, white)`:'#f1f5f9';
+      document.getElementById('month-calendar').innerHTML='<span></span>'.repeat(new Date(y,m,1).getDay())+data.map(d=>{
+        const future=d.key>todayKey,ratio=d.planned.length?d.done.length/d.planned.length:0;
+        return `<button onclick="showDay('${d.key}')" ${future?'disabled':''} aria-label="${d.key} 完成 ${d.done.length} / ${d.planned.length} 項" class="rounded-lg py-2 border-2 text-xs ${d.key===selectedDay?'border-slate-700':'border-transparent'} ${future?'opacity-30':''}" style="background:${shade(ratio)};color:#0f172a"><b>${d.day}</b><span class="block text-[10px]">${future?'—':d.planned.length?d.done.length+'/'+d.planned.length:'休息'}</span>${appState.protectedDays[d.key]?'<span class="block text-[9px]">已保護</span>':''}</button>`;
       }).join('');
-      document.getElementById('calendar-legend').innerHTML = '<span>少</span>' + [0,.25,.5,.75,1].map(n=>`<span class="w-4 h-4 rounded" style="background:${shade(n*maxCount)}"></span>`).join('') + '<span>多</span>';
-
-      // 渲染漸近線數學曲線圖 (連勝 0 ~ 90 天的寶石產量收斂圖)
-      const streakSamplePoints = [0, 3, 7, 14, 21, 30, 45, 60, 90];
-      const curveData = streakSamplePoints.map(s => calculateGemReward(s, getLevel()));
-      const capLine = streakSamplePoints.map(() => ASYMPTOTE_CAP);
-
-      if (!asymptoteChartInstance) {
-        const ctx2 = document.getElementById('asymptoteChart').getContext('2d');
-        asymptoteChartInstance = new Chart(ctx2, {
-          type: 'line',
-          data: {
-            labels: streakSamplePoints.map(s => `${s}天`),
-            datasets: [
-              {
-                label: '單次打卡寶石',
-                data: curveData,
-                borderColor: '#0ea5e9',
-                backgroundColor: 'rgba(14, 165, 233, 0.12)',
-                fill: true,
-                tension: 0.35,
-                pointRadius: 3
-              },
-              {
-                label: '漸近線上限 (30 💎)',
-                data: capLine,
-                borderColor: '#f43f5e',
-                borderDash: [5, 5],
-                pointRadius: 0,
-                fill: false
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              y: { beginAtZero: true, max: 35, ticks: { stepSize: 10 } },
-              x: { grid: { display: false } }
-            },
-            plugins: { legend: { display: true, labels: { boxWidth: 12, font: { size: 10 } } } }
-          }
-        });
-      } else {
-        asymptoteChartInstance.data.datasets[0].data = curveData;
-        asymptoteChartInstance.update();
-      }
+      document.getElementById('calendar-legend').innerHTML=[0,.25,.5,.75,1].map(n=>`<span class="text-[10px]"><i class="inline-block w-3 h-3 rounded" style="background:${shade(n)}"></i> ${n*100}%</span>`).join(' ');
+      renderDay();
     };
+    const renderDay = () => {
+      const planned=habits.filter(h=>isScheduled(h,selectedDay)||h.history[selectedDay]);
+      const completed=planned.filter(h=>h.history[selectedDay]),missed=planned.filter(h=>!h.history[selectedDay]);
+      const list=items=>items.length?'<ul class="space-y-1 mt-1">'+items.map(h=>`<li>${escapeHtml(h.name)}</li>`).join('')+'</ul>':'<p class="text-slate-400 mt-1">無</p>';
+      document.getElementById('calendar-detail').innerHTML=`<p class="font-bold mb-3">${selectedDay}</p>${appState.protectedDays[selectedDay]?'<p class="text-indigo-600 text-xs mb-2">此日已保護連勝，未完成任務仍如實保留。</p>':''}<div class="grid grid-cols-2 gap-3"><section><b class="text-green-700">完成 ${completed.length}</b>${list(completed)}</section><section><b class="text-slate-500">未完成 ${missed.length}</b>${list(missed)}</section></div>${!planned.length?'<p class="mt-2 text-xs">當天沒有排定任務。</p>':''}`;
+    };
+    window.changeMonth = delta => {
+      const next=new Date(viewedMonth.getFullYear(),viewedMonth.getMonth()+delta,1);
+      if(next>new Date(currentYear,currentMonth,1)) return;
+      viewedMonth=next; selectedDay=dateKey(next);renderStats();
+    };
+    window.resetMonth = () => {viewedMonth=new Date(currentYear,currentMonth,1);selectedDay=todayKey;renderStats();};
 
     // --- 11. 互動事件 ---
     window.toggleToday = (id, ev) => {
@@ -685,7 +644,7 @@
       }
 
       const habit = habits.find(h => h.id === id);
-      if (!habit) return;
+      if (!habit || !isScheduled(habit,todayKey)) return;
 
       const wasChecked = !!habit.history[todayKey];
       const streakBefore = calculateHabitStreak(habit);
@@ -728,34 +687,58 @@
 
     window.deleteHabit = (id, ev) => {
       ev.stopPropagation();
-      if (confirm('確定要刪除這項任務嗎？')) {
-        habits = habits.filter(h => h.id !== id);
+      if (confirm('確定要移除此任務嗎？過去的打卡紀錄將保留。')) {
+        const h=habits.find(h=>h.id===id);if(!h)return;h.archivedOn=todayKey;
         saveAll();
         renderAll();
       }
     };
 
-    document.getElementById('add-habit-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const input = document.getElementById('habit-input');
-      const name = input.value.trim();
-      if (name) {
-        habits.push({ id: Date.now(), name, history: {}, createdOn: todayKey });
-        input.value = '';
-        saveAll();
-        renderAll();
-      }
+    let editingHabitId=null;
+    window.updateFrequencyFields=()=>{
+      const type=document.getElementById('habit-frequency').value;
+      document.getElementById('weekday-options').classList.toggle('hidden',type!=='weekdays');
+      document.getElementById('interval-options').classList.toggle('hidden',type!=='interval');
+    };
+    window.cancelEdit=()=>{editingHabitId=null;document.getElementById('habit-input').value='';document.getElementById('editing-label').textContent='';document.getElementById('cancel-edit').classList.add('hidden');};
+    window.editHabit=id=>{
+      const h=habits.find(h=>h.id===id);if(!h)return;editingHabitId=id;
+      const r=h.schedules[h.schedules.length-1];
+      document.getElementById('habit-input').value=h.name;
+      document.getElementById('habit-frequency').value=r.type;
+      document.getElementById('habit-interval').value=r.interval||2;
+      document.querySelectorAll('[name="habit-day"]').forEach(el=>el.checked=r.days.includes(Number(el.value)));
+      document.getElementById('editing-label').textContent='正在編輯：頻率變更從明天生效，保留歷史排程。';
+      document.getElementById('cancel-edit').classList.remove('hidden');updateFrequencyFields();
+      document.getElementById('add-habit-form').scrollIntoView({behavior:'smooth',block:'center'});
+    };
+    document.getElementById('add-habit-form').addEventListener('submit',e=>{
+      e.preventDefault();if(dateKey(new Date())!==todayKey){location.reload();return;}
+      const name=document.getElementById('habit-input').value.trim();
+      const type=document.getElementById('habit-frequency').value;
+      const days=Array.from(document.querySelectorAll('[name="habit-day"]:checked'),el=>Number(el.value));
+      const interval=Number(document.getElementById('habit-interval').value);
+      if(!name)return;
+      if(type==='weekdays'&&!days.length){alert('請至少選擇一天。');return;}
+      if(type==='interval'&&(!Number.isInteger(interval)||interval<1||interval>365)){alert('間隔請輸入 1～365 天。');return;}
+      if(editingHabitId!==null){
+        const h=habits.find(h=>h.id===editingHabitId),tomorrow=new Date(currentYear,currentMonth,todayNum+1);h.name=name;
+        const from=dateKey(tomorrow);h.schedules=h.schedules.filter(r=>r.from<from);h.schedules.push({from,type,days,interval});
+      }else habits.push({id:Date.now(),name,history:{},createdOn:todayKey,schedules:[{from:todayKey,type,days,interval}]});
+      cancelEdit();saveAll();renderAll();
     });
 
     window.buyVoucher = (vId) => {
+      if(dateKey(new Date())!==todayKey){window.location.reload();return;}
       const item = appState.customVouchers.find(v => String(v.id) === String(vId));
       if (!item) return;
       if (appState.gems < item.cost) {
         alert(`💎 寶石不足！需要 ${item.cost} 💎 才能兌換【${escapeHtml(item.name)}】。`);
         return;
       }
+      if(item.isRedemption && redemptionCount()>=3){alert('贖罪券最多持有 3 張。');return;}
       appState.gems -= item.cost;
-      appState.voucherBag.push({ ...item, boughtAt: Date.now() });
+      appState.voucherBag.push({ ...item, boughtAt: Date.now(), availableFrom: todayKey });
       playSound('buy');
       saveAll();
       renderAll();
@@ -764,23 +747,9 @@
     window.useVoucherFromBag = (idx) => {
       const item = appState.voucherBag[idx];
       if (!item) return;
-      if (confirm(`確定要現在撕票使用【${escapeHtml(item.name)}】嗎？`)) {
-        if (item.isRedemption) {
-          if (formatKey(new Date().getFullYear(),new Date().getMonth(),new Date().getDate()) !== todayKey) { location.reload(); return; }
-          const key = yesterdayKey();
-          const missed = habits.filter(h => !h.history[key] && (!h.createdOn || h.createdOn <= key));
-          if (!missed.length) { alert('昨天沒有可補打卡的任務，贖罪券未消耗。'); return; }
-          const answer = prompt('選擇要補回的任務編號：\n' + missed.map((h,i)=>`${i+1}. ${h.name}`).join('\n'));
-          if (answer === null) return;
-          const index = Number(answer)-1;
-          if (!Number.isInteger(index) || index<0 || index>=missed.length) { alert('編號無效，贖罪券未消耗。'); return; }
-          missed[index].history[key] = true;
-          missed[index].redeemedDays ||= {};
-          missed[index].redeemedDays[key] = true;
-          awardWeekly(missed[index]);
-        } else {
-          alert(`兌換成功！現在就去享受：${item.name}`);
-        }
+      if(item.isRedemption){alert('贖罪券會在漏打卡後自動使用，不需要手動兌換。');return;}
+      if (confirm(`確定要現在使用【${item.name}】嗎？`)) {
+        alert(`兌換成功！現在就去享受：${item.name}`);
         appState.voucherBag.splice(idx, 1);
         playSound('fanfare');
         saveAll();
@@ -803,10 +772,7 @@
       }
     });
 
-    window.showDay = key => {
-      const done = habits.filter(h=>h.history[key]);
-      document.getElementById('calendar-detail').textContent = `${key}：完成 ${done.length} 項` + (done.length ? ' — '+done.map(h=>h.name+(h.redeemedDays?.[key]?'（贖罪券補回）':'')).join('、') : '，尚無打卡紀錄');
-    };
+    window.showDay = key => {selectedDay=key;renderStats();};
     document.getElementById('avatar-text').value = appState.customAvatarText;
     document.getElementById('theme-color').value = appState.customColor;
     document.getElementById('save-avatar').onclick = () => {
@@ -865,6 +831,9 @@
       a.click();
     });
 
+    window.addEventListener('focus', () => { if(dateKey(new Date())!==todayKey) window.location.reload(); });
+    checkProtection();
+    saveAll();
     renderAll();
   </script>
 </body>
