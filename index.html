@@ -65,6 +65,39 @@
       100% { opacity: 0; transform: translateY(-28px) scale(1.1); }
     }
     .reward-toast { animation: floatUp 0.9s ease-out forwards; }
+
+    body {background:var(--page);color:var(--ink)}
+    body .bg-white {background-color:var(--surface)}
+    body header,body nav {background:var(--surface);border-color:var(--line)}
+    body .border-slate-200 {border-color:var(--line)}
+    body .text-slate-800,body .text-slate-600 {color:var(--ink)}
+    body .text-slate-400,body .text-slate-500 {color:var(--muted)}
+    body .bg-slate-100 {background-color:var(--neutral)}
+    body [class*="bg-amber-50"] {background-color:var(--warm-soft)}
+    body [class*="border-amber-"] {border-color:var(--warm)}
+    body [class*="text-amber-"] {color:var(--warm-ink)}
+    body .bg-sky-50 {background-color:var(--cool-soft)}
+    body .border-sky-200 {border-color:var(--cool)}
+    body .text-sky-500 {color:var(--cool-ink)}
+    body .duo-btn,body .theme-bg {color:var(--on-primary)}
+    body .theme-text {color:var(--primary-ink)}
+    #status-banner {background:var(--warm-soft);border-color:var(--warm);color:var(--warm-ink)}
+    #profile-dialog {padding:0;width:min(560px,calc(100% - 24px));max-height:88dvh;border:1px solid var(--line);border-radius:24px;background:var(--page);color:var(--ink)}
+    #profile-dialog::backdrop {background:rgb(35 35 30 / .5);backdrop-filter:blur(3px)}
+    .profile-heading {position:sticky;top:0;z-index:1;background:var(--surface);padding:20px;display:flex;justify-content:space-between;border-bottom:1px solid var(--line)}
+    .profile-heading small {font-size:10px;letter-spacing:.2em;color:var(--muted)}
+    .profile-heading h2 {font-size:22px;font-weight:800;margin-top:4px}
+    .profile-heading button {width:44px;height:44px;border-radius:50%;background:var(--neutral)}
+    .profile-content {padding:20px}
+    .profile-content input,.profile-content textarea {background:var(--surface);color:var(--ink);border-color:var(--line)}
+    #palette-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .palette-card {text-align:left;border:2px solid var(--line);border-radius:16px;padding:12px;background:var(--surface);min-width:0}
+    .palette-card[aria-pressed="true"] {border-color:var(--primary-ink);box-shadow:0 0 0 1px var(--primary-ink)}
+    .palette-swatches {display:flex;height:30px;border-radius:8px;overflow:hidden;margin:10px 0}
+    .palette-swatches span {flex:1}
+    .palette-card small {font-size:11px;color:var(--muted)}
+    button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible {outline:3px solid var(--primary-ink);outline-offset:3px}
+    html:has(#profile-dialog[open]) {overflow:hidden}
   </style>
 </head>
 <body class="text-slate-800 min-h-screen font-sans pb-24 select-none">
@@ -74,10 +107,11 @@
     <div class="max-w-md mx-auto flex items-center justify-between">
       <!-- 角色頭像與等級 -->
       <div class="flex items-center gap-2.5">
-        <div id="avatar-display" class="w-11 h-11 rounded-2xl theme-bg flex items-center justify-center text-2xl shadow-sm border-b-4 border-black/15">
+        <button type="button" onclick="openProfile()" aria-label="開啟個人資料與主題設定" title="個人資料與主題" id="avatar-display" class="w-11 h-11 rounded-2xl theme-bg flex items-center justify-center text-2xl shadow-sm border-b-4 border-black/15">
           修
-        </div>
+        </button>
         <div>
+          <div id="profile-name" class="text-xs font-bold truncate max-w-28"></div>
           <div class="flex items-center gap-1.5">
             <span class="font-extrabold text-sm text-slate-800" id="level-badge">Lv.1</span>
           </div>
@@ -195,14 +229,6 @@
         </div>
       </div>
 
-      <div class="bg-white p-4 rounded-2xl border-2 border-slate-200 space-y-3">
-        <h3 class="font-extrabold"><img src="https://img.icons8.com/fluency/48/paint-palette.png" width="28" height="28" class="inline-block shrink-0" alt="" loading="lazy" onerror="this.style.visibility='hidden'"> 自訂個人外觀</h3>
-        <label class="block text-sm font-bold">頭像文字（最多 2 字）<input id="avatar-text" maxlength="2" class="block border-2 rounded-xl p-2 mt-2 w-full" placeholder="例如：修煉"></label>
-        <label class="block text-sm font-bold">上傳頭像圖片<input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp" class="block mt-2 text-xs w-full"></label>
-        <button id="save-avatar" class="duo-btn text-white px-4 py-2 rounded-xl">套用文字頭像</button>
-        <label class="block text-sm font-bold">主題顏色<input id="theme-color" type="color" class="block mt-2 w-full h-12" aria-label="主題顏色"></label>
-        <p class="text-xs text-slate-400">頭像與配色免費自訂，儲存在此瀏覽器。</p>
-      </div>
 
     </section>
 
@@ -267,6 +293,26 @@
       </button>
     </div>
   </nav>
+
+
+  <dialog id="profile-dialog" aria-labelledby="profile-title">
+    <div class="profile-heading"><div><small>MY LITTLE ROUTINE</small><h2 id="profile-title">我的日常手帳</h2></div><button type="button" onclick="document.getElementById('profile-dialog').close()" aria-label="關閉個人設定">✕</button></div>
+    <div class="profile-content space-y-4">
+      <p class="text-sm">從喜歡的顏色開始，慢慢養成自己的日常。</p>
+      <label class="block text-sm font-bold">暱稱<input id="profile-nickname" maxlength="20" class="block border-2 rounded-xl p-2 mt-2 w-full" placeholder="怎麼稱呼你？"></label>
+      <label class="block text-sm font-bold">給自己的一句話<textarea id="profile-bio" maxlength="120" rows="2" class="block border-2 rounded-xl p-2 mt-2 w-full" placeholder="每天前進一點點，也很好。"></textarea></label>
+      <p id="profile-saved" role="status" class="text-xs"></p>
+        <label class="block text-sm font-bold">頭像文字（最多 2 字）<input id="avatar-text" maxlength="2" class="block border-2 rounded-xl p-2 mt-2 w-full" placeholder="例如：修煉"></label>
+        <label class="block text-sm font-bold">上傳頭像圖片<input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp" class="block mt-2 text-xs w-full"></label>
+        <button id="save-avatar" class="duo-btn text-white px-4 py-2 rounded-xl">套用文字頭像</button>
+        <label class="block text-sm font-bold">微調主色<input id="theme-color" type="color" class="block mt-2 w-full h-12" aria-label="微調主色"></label>
+        <p class="text-xs text-slate-400">變更會自動儲存在此瀏覽器。</p>
+
+      <h3 class="font-bold">日系配色選集</h3><p class="text-xs">12 組多色主題，點選即可套用。微調主色會保留其他搭配。</p>
+      <div id="palette-grid"></div>
+      <p class="text-xs">靈感參考 <a class="underline" href="https://www.colordic.org/w" target="_blank" rel="noopener noreferrer">和色大辞典</a>；以下為適合介面閱讀而重新搭配的原創色組。</p>
+    </div>
+  </dialog>
 
   <script>
     // --- 1. 音效合成器 (Web Audio API) ---
@@ -371,7 +417,8 @@
     habits.forEach(h=>h.name=cleanLabel(h.name));
     appState.customVouchers.forEach(v=>v.name=cleanLabel(v.name));
     appState.voucherBag.forEach(v=>v.name=cleanLabel(v.name));
-    appState.customColor ||= '#58cc02';
+    if (!appState.paletteId) { appState.paletteId='matcha'; if (!appState.customColor || appState.customColor==='#58cc02') appState.customColor='#61765B'; }
+    appState.customColor ||= '#61765B';
     const migrateVoucher = v => v.isLazyPass || v.id === 'redemption'
       ? { ...v, id: 'redemption', name: '贖罪券（自動保護連勝）', cost: 100, isLazyPass: false, isRedemption: true } : v;
     appState.customVouchers = appState.customVouchers.map(migrateVoucher);
@@ -475,13 +522,37 @@
       return base + Math.round(levelBonus + streakBonus);
     };
 
+const PALETTES = [{"id": "matcha", "name": "抹茶和紙", "description": "茶綠・奶油・陶土", "primary": "#61765B", "page": "#F4F1E8", "surface": "#FFFCF5", "warm": "#C9957B", "cool": "#92A7A0"}, {"id": "sakura", "name": "櫻花散步", "description": "豆沙・櫻粉・鼠尾草", "primary": "#9B6570", "page": "#FAF1F0", "surface": "#FFF9F6", "warm": "#D8B27D", "cool": "#A3B4A0"}, {"id": "indigo", "name": "藍染書店", "description": "靛藍・亞麻・芥末", "primary": "#365C73", "page": "#F1F2ED", "surface": "#FCFAF2", "warm": "#C6A55C", "cool": "#9CAFA2"}, {"id": "hojicha", "name": "焙茶午後", "description": "焙茶・燕麥・青瓷", "primary": "#80624F", "page": "#F4EEE4", "surface": "#FFFAF2", "warm": "#C69A62", "cool": "#9CB8AD"}, {"id": "fuji", "name": "藤花小徑", "description": "藤紫・霧灰・杏黃", "primary": "#796783", "page": "#F4F0F6", "surface": "#FFFAFC", "warm": "#D6B67A", "cool": "#A1B5B0"}, {"id": "sea", "name": "瀨戶內海", "description": "海青・貝白・珊瑚", "primary": "#477C80", "page": "#EEF4F1", "surface": "#FAFCF5", "warm": "#D0A089", "cool": "#A7B8CC"}, {"id": "autumn", "name": "山間秋日", "description": "磚紅・稻黃・橄欖", "primary": "#945F4F", "page": "#F6EFE5", "surface": "#FFFAF1", "warm": "#CEAF60", "cool": "#9BA17C"}, {"id": "rain", "name": "雨の日", "description": "灰藍・石白・淡藤", "primary": "#5C7182", "page": "#F0F2F3", "surface": "#FCFCF9", "warm": "#C1AA91", "cool": "#ADA8C2"}, {"id": "peach", "name": "白桃喫茶", "description": "玫瑰茶・桃米・薄荷", "primary": "#9A6B63", "page": "#FAF0E8", "surface": "#FFFBF5", "warm": "#D8B16F", "cool": "#A2B6A4"}, {"id": "forest", "name": "森之旅", "description": "常綠・木色・霧藍", "primary": "#426A5C", "page": "#EFF2E9", "surface": "#FAFCF3", "warm": "#BC9870", "cool": "#9DADB8"}, {"id": "lemon", "name": "檸檬文具", "description": "橄欖・檸黃・水色", "primary": "#737343", "page": "#F7F5E7", "surface": "#FFFDF2", "warm": "#D5BC65", "cool": "#97B6B7"}, {"id": "night", "name": "月下墨色", "description": "墨灰・和紙・古金", "primary": "#555563", "page": "#F0EEF0", "surface": "#FCF9F3", "warm": "#B69C6D", "cool": "#A4A0B5"}];
+
+    const contrastInk = hex => {
+      const rgb=hex.slice(1).match(/../g).map(v=>parseInt(v,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);
+      return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722>.179?'#17211D':'#FFFFFF';
+    };
+    const renderPalettes = () => {
+      document.getElementById('palette-grid').innerHTML=PALETTES.map(p=>`<button type="button" class="palette-card" aria-pressed="${appState.paletteId===p.id}" onclick="selectPalette('${p.id}')"><b>${p.name}</b><div class="palette-swatches" aria-hidden="true">${[p.primary,p.page,p.surface,p.warm,p.cool].map(c=>`<span style="background:${c}"></span>`).join('')}</div><small>${p.description}</small>${appState.paletteId===p.id?'<small class="block mt-1">已選用</small>':''}</button>`).join('');
+    };
+    window.selectPalette = id => {
+      const p=PALETTES.find(p=>p.id===id);if(!p)return;
+      appState.paletteId=id;appState.customColor=p.primary;
+      document.getElementById('theme-color').value=p.primary;saveAll();renderAll();renderPalettes();
+    };
+    window.openProfile = () => {
+      document.getElementById('profile-nickname').value=appState.nickname||'';
+      document.getElementById('profile-bio').value=appState.bio||'';
+      renderPalettes();document.getElementById('profile-dialog').showModal();
+    };
+
     // --- 7. 套用主題外觀與角色 ---
     const applyThemeAndAvatar = () => {
+      const palette=PALETTES.find(p=>p.id===appState.paletteId)||PALETTES[0];
       const color = /^#[0-9a-f]{6}$/i.test(appState.customColor) ? appState.customColor : '#58cc02';
       document.documentElement.style.setProperty('--primary', color);
       document.documentElement.style.setProperty('--primary-dark', `color-mix(in srgb, ${color}, black 25%)`);
       document.documentElement.style.setProperty('--bg-soft', `color-mix(in srgb, ${color} 10%, white)`);
-      document.getElementById('meta-theme-color').content = color;
+      const vars={page:palette.page,surface:palette.surface,warm:palette.warm,cool:palette.cool,ink:'#343A36',muted:'#62665F',line:`color-mix(in srgb, ${palette.primary} 22%, ${palette.surface})`,neutral:`color-mix(in srgb, ${palette.cool} 15%, ${palette.surface})`,'warm-soft':`color-mix(in srgb, ${palette.warm} 20%, ${palette.surface})`,'cool-soft':`color-mix(in srgb, ${palette.cool} 20%, ${palette.surface})`,'warm-ink':'#6A4E32','cool-ink':'#35596A','on-primary':contrastInk(color),'primary-ink':contrastInk(color)==='#FFFFFF'?color:'#34443B'};
+      Object.entries(vars).forEach(([key,value])=>document.documentElement.style.setProperty('--'+key,value));
+      document.getElementById('profile-name').textContent=appState.nickname||'我的日常';
+      document.getElementById('meta-theme-color').content = palette.page;
       const avatar = document.getElementById('avatar-display');
       avatar.textContent = appState.customAvatarText;
       if (appState.customAvatarImage) {
@@ -612,7 +683,7 @@
       document.getElementById('stat-active-days').textContent=`${data.filter(d=>d.done.length).length} 天`;
       document.getElementById('calendar-title').textContent=`${y} 年 ${m+1} 月`;
       document.getElementById('next-month').disabled=y===currentYear&&m===currentMonth;
-      const shade=ratio=>ratio?`color-mix(in srgb, ${appState.customColor} ${20+70*ratio}%, white)`:'#f1f5f9';
+      const shade=ratio=>ratio?`color-mix(in srgb, ${appState.customColor} ${15+45*ratio}%, white)`:'#f1f5f9';
       document.getElementById('month-calendar').innerHTML='<span></span>'.repeat(new Date(y,m,1).getDay())+data.map(d=>{
         const future=d.key>todayKey,ratio=d.planned.length?d.done.length/d.planned.length:0;
         return `<button onclick="showDay('${d.key}')" ${future?'disabled':''} aria-label="${d.key} 完成 ${d.done.length} / ${d.planned.length} 項" class="rounded-lg py-2 border-2 text-xs ${d.key===selectedDay?'border-slate-700':'border-transparent'} ${future?'opacity-30':''}" style="background:${shade(ratio)};color:#0f172a"><b>${d.day}</b><span class="block text-[10px]">${future?'—':d.planned.length?d.done.length+'/'+d.planned.length:'休息'}</span>${appState.protectedDays[d.key]?'<span class="block text-[9px]">已保護</span>':''}</button>`;
@@ -773,6 +844,11 @@
     });
 
     window.showDay = key => {selectedDay=key;renderStats();};
+    ['nickname','bio'].forEach(key=>document.getElementById('profile-'+key).addEventListener('input',e=>{
+      appState[key]=e.target.value.slice(0,key==='nickname'?20:120);saveAll();applyThemeAndAvatar();
+      document.getElementById('profile-saved').textContent='個人資料已儲存';
+    }));
+    document.getElementById('profile-dialog').addEventListener('click',e=>{if(e.target===e.currentTarget){const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.currentTarget.close();}});
     document.getElementById('avatar-text').value = appState.customAvatarText;
     document.getElementById('theme-color').value = appState.customColor;
     document.getElementById('save-avatar').onclick = () => {
